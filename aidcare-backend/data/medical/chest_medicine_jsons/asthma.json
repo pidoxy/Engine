@@ -1,0 +1,76 @@
+{
+  "disease": "Asthma",
+  "synonyms": [
+    "Bronchial asthma"
+  ],
+  "category": "Respiratory Medicine",
+  "description": "Asthma is a chronic inflammatory disease of the airways characterized by variable airflow obstruction, bronchial hyperresponsiveness, and underlying inflammation. Symptoms are often triggered by allergens, infections, or exercise.",
+  "epidemiology": {
+    "prevalence": "Very common; affects children and adults globally",
+    "risk_factors": [
+      "Family history of atopy or asthma",
+      "Environmental allergens",
+      "Occupational exposures",
+      "Viral infections in childhood",
+      "Smoking or passive smoke exposure"
+    ]
+  },
+  "symptoms": [
+    "Wheezing",
+    "Cough (especially at night)",
+    "Shortness of breath",
+    "Chest tightness",
+    "Symptom variability with triggers or time of day"
+  ],
+  "diagnosis": {
+    "clinical": [
+      "History of episodic respiratory symptoms",
+      "Symptoms triggered by cold air, exercise, allergens"
+    ],
+    "investigations": [
+      "Spirometry: FEV1/FVC reduced and reversible with bronchodilator",
+      "PEFR variability (>20%)",
+      "Fractional exhaled nitric oxide (FeNO)",
+      "Exclude differentials: COPD, vocal cord dysfunction, heart failure"
+    ],
+    "differential_diagnosis": [
+      "COPD",
+      "Bronchiectasis",
+      "Vocal cord dysfunction",
+      "Heart failure"
+    ]
+  },
+  "treatment": {
+    "first_line": [
+      "Inhaled short-acting beta-agonist (SABA) e.g. salbutamol"
+    ],
+    "maintenance": [
+      "Inhaled corticosteroids (ICS)",
+      "Long-acting beta-agonists (LABA) if ICS alone is insufficient"
+    ],
+    "acute_exacerbation": [
+      "Oral corticosteroids (e.g. prednisolone 40mg PO for 5 days)",
+      "High-dose inhaled beta-agonists",
+      "Oxygen therapy if hypoxic"
+    ],
+    "contraindications": {
+      "non_selective_beta_blockers": "Can worsen bronchospasm",
+      "NSAIDs": "May trigger attacks in sensitive patients"
+    }
+  },
+  "preventive_measures": [
+    "Avoid allergens",
+    "Smoking cessation",
+    "Influenza and pneumococcal vaccination",
+    "Regular use of preventer inhalers"
+  ],
+  "contextual_notes": {
+    "triage_alert": "PEFR <33% or inability to complete sentences = severe exacerbation requiring urgent intervention",
+    "low_resource_setting": "Ensure access to salbutamol inhalers and basic peak flow monitoring"
+  },
+  "source": {
+    "textbook": "Oxford Handbook of Clinical Medicine",
+    "edition": "11th",
+    "page_reference": "Chapter 4 \u2013 Chest Medicine, Asthma section"
+  }
+}

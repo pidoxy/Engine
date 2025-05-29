@@ -1,0 +1,73 @@
+{
+  "disease": "Chronic Obstructive Pulmonary Disease (COPD)",
+  "synonyms": [
+    "COPD"
+  ],
+  "category": "Respiratory Medicine",
+  "description": "COPD is a progressive lung disease characterized by airflow limitation that is not fully reversible. It includes chronic bronchitis and emphysema.",
+  "epidemiology": {
+    "prevalence": "Common in smokers and people exposed to biomass fuels",
+    "risk_factors": [
+      "Smoking",
+      "Air pollution",
+      "Occupational dust exposure",
+      "Alpha-1 antitrypsin deficiency"
+    ]
+  },
+  "symptoms": [
+    "Chronic cough",
+    "Sputum production",
+    "Exertional breathlessness",
+    "Wheezing",
+    "Frequent respiratory infections"
+  ],
+  "diagnosis": {
+    "clinical": [
+      "History of smoking and chronic respiratory symptoms"
+    ],
+    "investigations": [
+      "Spirometry: FEV1/FVC < 0.7 after bronchodilator",
+      "Chest X-ray: hyperinflation",
+      "Pulse oximetry",
+      "Exclude asthma, heart failure, bronchiectasis"
+    ],
+    "differential_diagnosis": [
+      "Asthma",
+      "Heart failure",
+      "Bronchiectasis",
+      "Lung cancer"
+    ]
+  },
+  "treatment": {
+    "first_line": [
+      "Smoking cessation",
+      "Short-acting bronchodilators"
+    ],
+    "maintenance": [
+      "Long-acting beta agonists (LABA)",
+      "Inhaled corticosteroids (ICS)",
+      "Pulmonary rehabilitation"
+    ],
+    "acute_exacerbation": [
+      "Oral corticosteroids",
+      "Antibiotics if bacterial infection suspected",
+      "Oxygen therapy if hypoxaemic"
+    ],
+    "contraindications": {
+      "Beta blockers": "Use cardio-selective only if needed"
+    }
+  },
+  "preventive_measures": [
+    "Smoking cessation",
+    "Vaccination (influenza and pneumococcal)",
+    "Avoidance of environmental pollutants"
+  ],
+  "contextual_notes": {
+    "low_resource_setting": "Focus on smoking cessation, spacer-based inhalers, and rehab exercises"
+  },
+  "source": {
+    "textbook": "Oxford Handbook of Clinical Medicine",
+    "edition": "11th",
+    "page_reference": "Chapter 4 \u2013 Chest Medicine, COPD section"
+  }
+}
