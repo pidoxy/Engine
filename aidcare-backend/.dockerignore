@@ -1,14 +1,21 @@
-# .dockerignore
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
-env/
-venv/
-.env
-.vscode/
-.git/
-.gitignore
 *.log
-# Add any other files or directories not needed in the final image
+*.sqlite3
+*.db
+
+.env
+.venv/
+venv/
+.git/
+data/
+temp_audio/
+guidelines_index.faiss
+*.faiss
+*.mp3
+*.wav
+*.zip
+*.tar.gz
+*.ipynb
