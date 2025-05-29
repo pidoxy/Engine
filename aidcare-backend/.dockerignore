@@ -12,7 +12,8 @@ venv/
 .git/
 data/
 temp_audio/
-*.faiss
+# guidelines_index.faiss
+# *.faiss
 *.mp3
 *.wav
 *.zip
