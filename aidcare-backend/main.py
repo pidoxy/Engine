@@ -6,7 +6,8 @@ import shutil
 import os
 import time
 import json
-# import asyncio # Only if you have actual async operations in your pipeline funcs
+from dotenv import load_dotenv
+import os
 
 # --- Import your AI pipeline modules ---
 from aidcare_pipeline.transcription import transcribe_audio_local, load_whisper_model
@@ -22,10 +23,20 @@ from aidcare_pipeline.rag_retrieval import (
 from aidcare_pipeline.recommendation import generate_triage_recommendation
 # For Clinical Mode - Step 2 (You'll create this function/module later)
 # from aidcare_pipeline.clinical_support_generation import generate_clinical_support_details_with_gemini
+from pydantic import BaseModel # Import BaseModel
+
+# --- Pydantic Model for Text Input ---
+class TranscriptInput(BaseModel):
+    transcript_text: str
+
+
+load_dotenv() 
 
 # --- Environment Variable Checks & Setup ---
 if not os.environ.get("GOOGLE_API_KEY"):
-    print("CRITICAL WARNING: GOOGLE_API_KEY environment variable is not set. Gemini calls will fail.")
+    print("CRITICAL WARNING: GOOGLE_API_KEY environment variable is not set. (checked .env and system env). Gemini calls will fail.")
+else:
+    print("GOOGLE_API_KEY loaded successfully.")
 
 TEMP_AUDIO_DIR = "temp_audio"
 os.makedirs(TEMP_AUDIO_DIR, exist_ok=True)
@@ -96,6 +107,99 @@ def get_clinical_retriever_dependency() -> GuidelineRetriever:
 
 # --- API Endpoints ---
 
+# --- TRANSCRIPTION ONLY ---
+@app.post("/transcribe/audio/")
+async def transcribe_audio_endpoint(audio_file: UploadFile = File(...)):
+    unique_suffix = f"{int(time.time() * 1000)}_transcribe_only_{audio_file.filename}"
+    file_path = os.path.join(TEMP_AUDIO_DIR, unique_suffix)
+
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(audio_file.file, buffer)
+        print(f"Transcription Endpoint - Audio file saved to {file_path}")
+
+        print("Transcription Endpoint - Starting Transcription...")
+        transcript = transcribe_audio_local(file_path) # Using your existing function
+        
+        if transcript is None: # transcribe_audio_local might return None on error or empty string
+            raise HTTPException(status_code=500, detail="Transcription failed or produced no output.")
+        
+        print(f"Transcription Endpoint - Transcription Complete. Length: {len(transcript)}")
+        
+        return {"transcript": transcript}
+
+    except FileNotFoundError as e:
+        print(f"Transcription Endpoint - File not found error: {e}")
+        raise HTTPException(status_code=404, detail=f"Required audio file processing error: {e}")
+    except Exception as e:
+        print(f"Transcription Endpoint - Unhandled error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"An internal server error occurred during transcription: {str(e)}")
+    finally:
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                print(f"Transcription Endpoint - Temporary audio file {file_path} removed.")
+            except Exception as e_rem:
+                print(f"Transcription Endpoint - Error removing temporary file {file_path}: {e_rem}")
+       
+# --- PROCESSING PRE-TRANSCRIBED TEXT (CHW Mode) ---
+@app.post("/triage/process_text/")
+async def process_text_for_triage(
+    transcript_input: TranscriptInput, # Use the Pydantic model for request body
+    retriever: GuidelineRetriever = Depends(get_chw_retriever_dependency) # Use CHW retriever
+):
+    transcript = transcript_input.transcript_text
+    print(f"Received text for CHW Triage: {transcript[:200]}...") # Log received transcript
+
+    if not transcript or not transcript.strip():
+        raise HTTPException(status_code=400, detail="Transcript text cannot be empty.")
+
+    try:
+        # Phase 2 is skipped as we have the transcript
+
+        # --- Phase 3: Symptom Extraction (Gemini API) ---
+        print("CHW Text Mode - Starting Phase 3: Symptom Extraction...")
+        symptoms = extract_symptoms_with_gemini(transcript)
+        if "error" in symptoms if isinstance(symptoms, dict) else False:
+            raise HTTPException(status_code=500, detail=f"CHW Text Mode: Symptom extraction failed: {symptoms.get('error')}")
+        print(f"CHW Text Mode - Phase 3 Complete. Extracted Symptoms: {symptoms}")
+
+        # --- Phase 4: RAG Triage Engine (Local RAG) ---
+        print("CHW Text Mode - Starting Phase 4: Guideline Retrieval...")
+        retrieved_docs = retriever.retrieve_relevant_guidelines(symptoms, top_k=3)
+        print(f"CHW Text Mode - Phase 4 Complete. Retrieved {len(retrieved_docs)} guideline documents.")
+
+        # --- Phase 5: Triage Recommendation (Gemini API) ---
+        print("CHW Text Mode - Starting Phase 5: Recommendation Generation...")
+        recommendation = generate_triage_recommendation(symptoms, retrieved_docs)
+        if not recommendation or ("error" in recommendation if isinstance(recommendation, dict) else False):
+            error_detail = recommendation.get("error") if isinstance(recommendation, dict) else "Unknown error"
+            raise HTTPException(status_code=500, detail=f"CHW Text Mode: Failed to generate recommendation: {error_detail}")
+        print("CHW Text Mode - Phase 5 Complete. Recommendation generated.")
+        
+        return {
+            "mode": "chw_triage_text_input", # Indicate input type
+            "input_transcript": transcript, # Echo back the input transcript
+            "extracted_symptoms": symptoms,
+            "retrieved_guidelines_summary": [
+                {"source": d.get("source_document_name"), "code": d.get("subsection_code"), "case": d.get("case"), "score": d.get("retrieval_score (distance)")} 
+                for d in retrieved_docs
+            ],
+            "triage_recommendation": recommendation
+        }
+    except ValueError as e: # For API key issues from Gemini calls etc.
+        print(f"Value error in CHW Text Mode: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException as e:
+        raise e # Re-raise FastAPI's own HTTP exceptions
+    except Exception as e:
+        print(f"Unhandled error processing text for CHW triage: {e}")
+        import traceback
+        traceback.print_exc() 
+        raise HTTPException(status_code=500, detail=f"An internal server error occurred: {str(e)}")
+             
 @app.post("/triage/process_audio/") # For CHW Mode
 async def process_audio_for_triage(
     audio_file: UploadFile = File(...),

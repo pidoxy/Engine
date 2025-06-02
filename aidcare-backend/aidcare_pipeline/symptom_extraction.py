@@ -3,6 +3,9 @@ import google.generativeai as genai
 import json
 import os
 import time
+from dotenv import load_dotenv
+
+load_dotenv() 
 
 GEMINI_MODEL_NAME_EXTRACTION = os.getenv("GEMINI_MODEL_EXTRACTION", 'gemini-1.5-flash-latest')
 GOOGLE_API_KEY_SYMPTOMS = os.environ.get("GOOGLE_API_KEY") # Expect API key from environment

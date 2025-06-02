@@ -1,6 +1,4 @@
-// src/app/page.js
 import Link from 'next/link';
-// import styles from './Home.module.css'; // If you create a CSS module for this page
 
 export default function HomePage() {
   return (
@@ -12,6 +10,11 @@ export default function HomePage() {
           Start New Triage Session
         </button>
       </Link>
+      <Link href="/doctor/consult" passHref> 
+            <button style={{ padding: '15px 30px', fontSize: '1.1em', cursor: 'pointer', background: '#28a745', color: 'white', border: 'none', width: '250px' }}>
+              Doctor Clinical Support
+            </button>
+          </Link>
     </main>
   );
 }
