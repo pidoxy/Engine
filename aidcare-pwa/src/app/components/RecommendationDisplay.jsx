@@ -25,14 +25,14 @@ export default function RecommendationDisplay({ result }) {
     <div style={{ border: '1px solid #eee', padding: '15px', marginTop: '20px', borderRadius: '5px' }}>
       <h2>Triage Results</h2>
 
-      {transcript && (
+      {/* {transcript && (
         <details style={{ marginBottom: '10px' }}>
           <summary><strong>Transcript Snippet</strong> (Click to expand)</summary>
           <p style={{ maxHeight: '100px', overflowY: 'auto', background: '#f9f9f9', padding: '5px' }}>
             {transcript}
           </p>
         </details>
-      )}
+      )} */}
 
       {extracted_symptoms && extracted_symptoms.length > 0 && (
         <div style={{ marginBottom: '10px' }}>

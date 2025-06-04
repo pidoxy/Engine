@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { FaMicrophone, FaStop, FaMicrophoneSlash } from 'react-icons/fa';
 
 // Props: onRecordingStart, onRecordingStop (passes Blob back), isRecording (boolean), disabled (boolean)
 export default function AudioRecorder({ onRecordingStart, onRecordingStop, isRecording, disabled }) {
@@ -135,28 +136,165 @@ export default function AudioRecorder({ onRecordingStart, onRecordingStop, isRec
   };
 
   let buttonText = "Start Recording";
+  let buttonIcon = <FaMicrophone size={24} />;
+  
   if (permissionState === 'prompt' || permissionState === 'unknown') {
     buttonText = "Enable Mic & Start";
+    buttonIcon = <FaMicrophone size={24} />;
   } else if (permissionState === 'denied') {
     buttonText = "Mic Denied - Check Settings";
+    buttonIcon = <FaMicrophoneSlash size={24} />;
   }
 
+  const styles = {
+    container: {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '1rem'
+    },
+    startButton: {
+      background: permissionState === 'denied' 
+        ? 'linear-gradient(135deg, #ef4444, #dc2626)' 
+        : 'linear-gradient(135deg, #059669, #047857)',
+      color: 'white',
+      padding: '1.25rem 2.5rem',
+      borderRadius: '1rem',
+      fontSize: '1.125rem',
+      fontWeight: '600',
+      border: 'none',
+      cursor: disabled || permissionState === 'denied' ? 'not-allowed' : 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.75rem',
+      minWidth: '250px',
+      justifyContent: 'center',
+      boxShadow: permissionState === 'denied' 
+        ? '0 4px 12px rgba(239, 68, 68, 0.3)'
+        : '0 4px 12px rgba(5, 150, 105, 0.3)',
+      transition: 'all 0.3s ease',
+      opacity: disabled || permissionState === 'denied' ? 0.6 : 1
+    },
+    stopButton: {
+      background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+      color: 'white',
+      padding: '1.25rem 2.5rem',
+      borderRadius: '1rem',
+      fontSize: '1.125rem',
+      fontWeight: '600',
+      border: 'none',
+      cursor: disabled ? 'not-allowed' : 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.75rem',
+      minWidth: '250px',
+      justifyContent: 'center',
+      boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)',
+      transition: 'all 0.3s ease',
+      opacity: disabled ? 0.6 : 1,
+      animation: 'pulse 2s infinite'
+    },
+    recordingIndicator: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.5rem',
+      padding: '0.75rem 1.5rem',
+      background: 'rgba(239, 68, 68, 0.1)',
+      color: '#dc2626',
+      borderRadius: '9999px',
+      fontSize: '1rem',
+      fontWeight: '500',
+      border: '2px solid rgba(239, 68, 68, 0.2)',
+      animation: 'pulse 2s infinite'
+    },
+    recordingIcon: {
+      fontSize: '1.25rem',
+      animation: 'pulse 1s infinite'
+    },
+    userMessage: {
+      color: permissionState === 'denied' ? '#dc2626' : '#6b7280',
+      fontSize: '0.875rem',
+      textAlign: 'center',
+      maxWidth: '350px',
+      lineHeight: 1.5,
+      padding: '0.75rem 1rem',
+      background: permissionState === 'denied' 
+        ? 'rgba(239, 68, 68, 0.05)' 
+        : 'rgba(107, 114, 128, 0.05)',
+      borderRadius: '0.5rem',
+      border: `1px solid ${permissionState === 'denied' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(107, 114, 128, 0.2)'}`
+    }
+  };
+
   return (
-    <div>
+    <div style={styles.container}>
       {!isRecording ? (
         <button 
+          style={styles.startButton}
           onClick={handleStartRecording} 
           disabled={disabled || permissionState === 'denied'} // Disable if denied, let user fix in settings
+          onMouseOver={(e) => {
+            if (!disabled && permissionState !== 'denied') {
+              e.target.style.transform = 'translateY(-2px)';
+              e.target.style.boxShadow = '0 8px 20px rgba(5, 150, 105, 0.4)';
+            }
+          }}
+          onMouseOut={(e) => {
+            if (!disabled && permissionState !== 'denied') {
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 4px 12px rgba(5, 150, 105, 0.3)';
+            }
+          }}
         >
-          {buttonText}
+          {buttonIcon}
+          <span>{buttonText}</span>
         </button>
       ) : (
-        <button onClick={handleStopRecording} disabled={disabled}>
-          Stop Recording
+        <button 
+          style={styles.stopButton}
+          onClick={handleStopRecording} 
+          disabled={disabled}
+          onMouseOver={(e) => {
+            if (!disabled) {
+              e.target.style.transform = 'translateY(-2px)';
+              e.target.style.boxShadow = '0 8px 20px rgba(239, 68, 68, 0.4)';
+            }
+          }}
+          onMouseOut={(e) => {
+            if (!disabled) {
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.3)';
+            }
+          }}
+        >
+          <FaStop size={24} />
+          <span>Stop Recording</span>
         </button>
       )}
-      {isRecording && <p>🎙️ Recording...</p>}
-      {userMessage && <p style={{ color: permissionState === 'denied' ? 'orange' : 'inherit', marginTop: '5px' }}>{userMessage}</p>}
+      
+      {isRecording && (
+        <div style={styles.recordingIndicator}>
+          <FaMicrophone style={styles.recordingIcon} />
+          <span>Recording in progress...</span>
+        </div>
+      )}
+      
+      {userMessage && (
+        <div style={styles.userMessage}>
+          {userMessage}
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.8;
+          }
+        }
+      `}</style>
     </div>
   );
 }
