@@ -3,3 +3,8 @@
 temp_audio/
 
 *.env
+
+patient_documents_storage/
+
+temp_pdf_pages/
+
