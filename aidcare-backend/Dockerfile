@@ -14,6 +14,9 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     libffi-dev \
     python3-dev \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    poppler-utils \
     git \
     && rm -rf /var/lib/apt/lists/*
 

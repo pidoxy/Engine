@@ -76,7 +76,7 @@ def generate_clinical_support_details(
     {knowledge_context_str}
 
     Task:
-    Based ONLY on the 'Patient's Current Presentation & History' and the 'Retrieved Relevant Knowledge Base Information', generate clinical support suggestions.
+    Based on ALL the provided patient information (current consultation, manually entered context, AND past uploaded documents) AND the 'Retrieved Relevant Knowledge Base Information', generate clinical support suggestions.
     Structure your response as a SINGLE JSON object with the following keys:
     - "potential_conditions": (list of objects, each with "name": string, "reasoning": string, "source_ref": list of strings [e.g., "Textbook: OHCM - Anemia"])
     - "suggested_investigations": (list of objects, each with "test": string, "rationale": string, "source_ref": list of strings)
