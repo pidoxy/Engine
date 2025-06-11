@@ -1,24 +1,49 @@
 const withPWA = require('next-pwa')({
   dest: 'public',
-  register: true,         // Register the service worker
-  skipWaiting: true,      // Install new service worker immediately
-  runtimeCaching: [       // Optional: Define custom runtime caching strategies
+  register: true,
+  skipWaiting: true,
+  disable: false,
+  // Add custom workbox options for better error handling
+  buildExcludes: [/middleware-manifest\.json$/],
+  mode: 'production',
+  runtimeCaching: [
     {
-      urlPattern: /^https?.*/, // Cache API calls, images, etc.
-      handler: 'NetworkFirst', // Or 'CacheFirst', 'StaleWhileRevalidate'
+      urlPattern: /^https?:\/\/.*\.(png|jpg|jpeg|webp|svg|gif|tiff)$/i,
+      handler: 'CacheFirst',
+      options: {
+        cacheName: 'images',
+        expiration: {
+          maxEntries: 64,
+          maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+        },
+      },
+    },
+    {
+      urlPattern: /^https?:\/\/.*\.(js|css|woff|woff2|ttf|eot)$/i,
+      handler: 'CacheFirst',
+      options: {
+        cacheName: 'static-resources',
+        expiration: {
+          maxEntries: 64,
+          maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+        },
+      },
+    },
+    {
+      urlPattern: /^https?:\/\/.*$/i,
+      handler: 'NetworkFirst',
       options: {
         cacheName: 'runtime-cache',
         expiration: {
-          maxEntries: 200,
-          maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
+          maxEntries: 128,
+          maxAgeSeconds: 24 * 60 * 60, // 1 day
         },
         cacheableResponse: {
-          statuses: [0, 200], // Cache opaque responses and successful ones
+          statuses: [0, 200],
         },
       },
     },
   ],
-  disable: process.env.NODE_ENV === 'development' // Disable PWA in dev for easier debugging
 });
 
 module.exports = withPWA({

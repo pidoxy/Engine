@@ -1,5 +1,6 @@
 // src/app/layout.js
 import './globals.css'; // Import global styles
+import PWAHelper from './components/PWAHelper';
 
 export const metadata = {
   title: 'AidCare - AI Medical Assistant',
@@ -71,6 +72,7 @@ export default function RootLayout({ children }) {
         <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192x192.png" />
       </head>
       <body>
+        <PWAHelper />
         {children}
       </body>
     </html>
