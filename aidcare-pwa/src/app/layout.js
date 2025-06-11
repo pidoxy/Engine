@@ -1,6 +1,7 @@
 // src/app/layout.js
 import './globals.css'; // Import global styles
 import PWAHelper from './components/PWAHelper';
+import { AuthProvider } from './context/AuthContext';
 
 export const metadata = {
   title: 'AidCare - AI Medical Assistant',
@@ -73,7 +74,9 @@ export default function RootLayout({ children }) {
       </head>
       <body>
         <PWAHelper />
+        <AuthProvider>
         {children}
+        </AuthProvider>
       </body>
     </html>
   );
