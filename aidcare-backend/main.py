@@ -15,6 +15,7 @@ from typing import List
 from pydantic import BaseModel, Field
 
 class PatientCreate(BaseModel):
+    patient_uuid: str
     full_name: str | None = None
     date_of_birth_str: str | None = Field(default=None, description="YYYY-MM-DD format")
     gender: str | None = None
@@ -157,11 +158,23 @@ async def health_check():
 # --- Patient Management Endpoints ---
 @app.post("/patients/", response_model=PatientResponse, status_code=201)
 def create_new_patient_endpoint(patient_data: PatientCreate, db: Session = Depends(get_db)):
+    # Check if patient with this UUID already exists
+    existing_patient = crud.get_patient_by_uuid(db, patient_uuid=patient_data.patient_uuid)
+    if existing_patient:
+        raise HTTPException(status_code=400, detail=f"Patient with UUID {patient_data.patient_uuid} already exists")
+    
     dob_dt = None
     if patient_data.date_of_birth_str:
         try: dob_dt = datetime.strptime(patient_data.date_of_birth_str, "%Y-%m-%d")
         except ValueError: raise HTTPException(status_code=400, detail="Invalid date_of_birth_str. Use YYYY-MM-DD.")
-    db_patient = crud.create_patient(db=db, full_name=patient_data.full_name, dob=dob_dt, gender=patient_data.gender)
+    
+    db_patient = crud.create_patient(
+        db=db, 
+        patient_uuid=patient_data.patient_uuid,
+        full_name=patient_data.full_name, 
+        dob=dob_dt, 
+        gender=patient_data.gender
+    )
     if not db_patient: raise HTTPException(status_code=500, detail="Failed to create patient.")
     return db_patient
 

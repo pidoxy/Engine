@@ -6,10 +6,9 @@ from datetime import datetime # For timestamps
 from . import db_models as models # Using 'models' alias for clarity
 
 # --- Patient CRUD ---
-def create_patient(db: Session, full_name: str = None, dob: datetime = None, gender: str = None) -> models.Patient:
-    patient_uuid_str = str(uuid.uuid4())
+def create_patient(db: Session, patient_uuid: str, full_name: str = None, dob: datetime = None, gender: str = None) -> models.Patient:
     db_patient = models.Patient(
-        patient_uuid=patient_uuid_str, 
+        patient_uuid=patient_uuid, 
         full_name=full_name, 
         date_of_birth=dob, 
         gender=gender
