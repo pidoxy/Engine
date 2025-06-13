@@ -8,3 +8,4 @@ patient_documents_storage/
 
 temp_pdf_pages/
 
+.venv-deploy-critical/
