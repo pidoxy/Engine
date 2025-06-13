@@ -4,6 +4,7 @@ cachetools==5.5.2
 certifi==2025.4.26
 charset-normalizer==3.4.2
 faiss-cpu==1.11.0
+fastapi==0.110.0
 filelock==3.13.1
 fsspec==2024.6.1
 google-ai-generativelanguage==0.6.15
@@ -46,6 +47,7 @@ scikit-learn==1.7.0
 scipy==1.15.3
 sentence-transformers==4.1.0
 setuptools==70.2.0
+sqlalchemy==2.0.28
 sympy==1.13.3
 threadpoolctl==3.6.0
 tokenizers==0.21.1
@@ -58,3 +60,4 @@ typing-inspection==0.4.1
 typing_extensions==4.12.2
 uritemplate==4.2.0
 urllib3==2.4.0
+uvicorn==0.27.1
