@@ -77,8 +77,19 @@ COPY . .
 # Set proper permissions
 RUN chmod -R 755 ${APP_HOME}
 
-# Verify uvicorn installation
-RUN . ${VIRTUAL_ENV}/bin/activate && which uvicorn
+# Create a startup script to check environment variables
+RUN echo '#!/bin/sh\n\
+if [ -z "$GOOGLE_API_KEY" ]; then\n\
+    echo "ERROR: GOOGLE_API_KEY environment variable is not set"\n\
+    exit 1\n\
+fi\n\
+if [ -z "$DATABASE_URL" ]; then\n\
+    echo "ERROR: DATABASE_URL environment variable is not set"\n\
+    exit 1\n\
+fi\n\
+. ${VIRTUAL_ENV}/bin/activate\n\
+exec uvicorn main:app --host 0.0.0.0 --port 8080 --workers 1 --limit-concurrency 10 --timeout-keep-alive 30\n\
+' > /app/start.sh && chmod +x /app/start.sh
 
 # Expose port
 EXPOSE 8080
@@ -88,4 +99,4 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
 # Command to run the application with resource limits
-CMD ["sh", "-c", ". ${VIRTUAL_ENV}/bin/activate && uvicorn main:app --host 0.0.0.0 --port 8080 --workers 1 --limit-concurrency 10 --timeout-keep-alive 30"]
+CMD ["/app/start.sh"]
