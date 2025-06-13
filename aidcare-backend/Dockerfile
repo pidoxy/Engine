@@ -19,6 +19,7 @@ RUN python -m venv ${VIRTUAL_ENV}
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libc-dev \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first to leverage Docker layer caching
@@ -61,6 +62,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr-eng \
     poppler-utils \
     curl \
+    libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy virtual environment from builder
