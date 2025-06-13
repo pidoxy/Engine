@@ -90,9 +90,15 @@ app_state = {}
 @app.on_event("startup")
 async def startup_event():
     print("FastAPI app starting up...")
-    # Ensure DB tables exist (optional here if managed by Alembic or separate script)
-    # print("Ensuring database tables exist...")
-    # db_models.create_db_and_tables() # From db_models.py
+    # Ensure DB tables exist
+    print("Ensuring database tables exist...")
+    try:
+        db_models.create_db_and_tables()
+        print("Database tables created successfully.")
+    except Exception as e:
+        print(f"ERROR creating database tables: {e}")
+        print("Please ensure the database exists and the user has permissions.")
+        print("DATABASE_URL used:", os.environ.get("DATABASE_URL"))
     
     print("Initializing Whisper model...")
     try: load_whisper_model() 
