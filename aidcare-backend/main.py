@@ -230,7 +230,7 @@ async def process_text_for_triage_endpoint( # Renamed
         recommendation = generate_triage_recommendation(symptoms, retrieved_docs)
         if not recommendation or (isinstance(recommendation, dict) and "error" in recommendation): raise HTTPException(status_code=500, detail=f"Recommendation error: {recommendation.get('error') if isinstance(recommendation, dict) else 'Unknown'}")
         
-        crud.update_consultation_session_results(db=db, session_uuid=db_session.session_uuid, extracted_info={"symptoms": symptoms}, retrieved_docs=[{"source": d.get("source_document_name"), "code": d.get("subsection_code"), "case": d.get("case"), "score": d.get("retrieval_score (distance)")} for d in retrieved_docs], final_recommendation=recommendation)
+        crud.update_consultation_session_results(db=db, session_uuid=db_session.session_uuid, extracted_info={"symptoms": symptoms}, retrieved_docs_summary=[{"source": d.get("source_document_name"), "code": d.get("subsection_code"), "case": d.get("case"), "score": d.get("retrieval_score (distance)")} for d in retrieved_docs], final_recommendation=recommendation)
         return {"session_uuid": db_session.session_uuid, "mode": "chw_triage_text", "input_transcript": transcript, "extracted_symptoms": symptoms, "retrieved_guidelines_summary": [{"source": d.get("source_document_name"), "code": d.get("subsection_code"), "case": d.get("case"), "score": d.get("retrieval_score (distance)")} for d in retrieved_docs], "triage_recommendation": recommendation}
     except Exception as e: import traceback; traceback.print_exc(); raise HTTPException(status_code=500, detail=str(e))
              
@@ -261,7 +261,7 @@ async def process_audio_for_triage_endpoint( # Renamed
         recommendation = generate_triage_recommendation(symptoms, retrieved_docs)
         if not recommendation or (isinstance(recommendation, dict) and "error" in recommendation): raise HTTPException(status_code=500, detail=f"CHW Mode: Recommendation error: {recommendation.get('error') if isinstance(recommendation, dict) else 'Unknown'}")
         
-        crud.update_consultation_session_results(db=db, session_uuid=db_session.session_uuid, extracted_info={"symptoms":symptoms}, retrieved_docs=[{"source": d.get("source_document_name"), "code": d.get("subsection_code"), "case": d.get("case"), "score": d.get("retrieval_score (distance)")} for d in retrieved_docs], final_recommendation=recommendation)
+        crud.update_consultation_session_results(db=db, session_uuid=db_session.session_uuid, extracted_info={"symptoms":symptoms}, retrieved_docs_summary=[{"source": d.get("source_document_name"), "code": d.get("subsection_code"), "case": d.get("case"), "score": d.get("retrieval_score (distance)")} for d in retrieved_docs], final_recommendation=recommendation)
         return {
             "session_uuid": db_session.session_uuid, "mode": "chw_triage_audio", "transcript": transcript, "extracted_symptoms": symptoms,
             "retrieved_guidelines_summary": [{"source": d.get("source_document_name"), "code": d.get("subsection_code"), "case": d.get("case"), "score": d.get("retrieval_score (distance)")} for d in retrieved_docs],
@@ -339,7 +339,7 @@ async def process_consultation_for_clinical_support_endpoint( # Renamed
         if isinstance(support_details, dict) and "error" in support_details:
             raise HTTPException(status_code=500, detail=f"Clinical Support: Failed to generate support details: {support_details.get('error')}")
 
-        crud.update_consultation_session_results(db=db, session_uuid=db_session.session_uuid, extracted_info=extracted_info, retrieved_docs=[{"source_type": d.get("source_type"), "source_name": d.get("source_document_name"), "hint": d.get("disease_info", {}).get("disease") or d.get("case"), "score": d.get("retrieval_score (distance)")} for d in retrieved_rag_docs], final_recommendation=support_details)
+        crud.update_consultation_session_results(db=db, session_uuid=db_session.session_uuid, extracted_info=extracted_info, retrieved_docs_summary=[{"source_type": d.get("source_type"), "source_name": d.get("source_document_name"), "hint": d.get("disease_info", {}).get("disease") or d.get("case"), "score": d.get("retrieval_score (distance)")} for d in retrieved_rag_docs], final_recommendation=support_details)
 
         return {
             "session_uuid": db_session.session_uuid, "mode": "clinical_support", "transcript": transcript,
