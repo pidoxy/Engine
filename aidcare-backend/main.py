@@ -235,9 +235,10 @@ async def process_text_for_triage_endpoint( # Renamed
     except Exception as e: import traceback; traceback.print_exc(); raise HTTPException(status_code=500, detail=str(e))
              
 @app.post("/triage/process_audio/{patient_uuid}")
-async def process_audio_for_triage_endpoint( # Renamed
+async def process_audio_for_triage_endpoint(
     patient_uuid: str,
     audio_file: UploadFile = File(...),
+    manual_context: str = Form(""),
     db: Session = Depends(get_db),
     retriever: GuidelineRetriever = Depends(get_chw_retriever_dependency)
 ):
@@ -245,25 +246,25 @@ async def process_audio_for_triage_endpoint( # Renamed
     if not db_patient: raise HTTPException(status_code=404, detail=f"Patient {patient_uuid} not found.")
 
     session_uuid_str = str(uuid.uuid4())
-    # ... (rest of your CHW audio processing, using the full logic from your pasted main.py) ...
-    # ... This includes saving session to DB before and after AI calls ...
-    unique_suffix = f"{int(time.time() * 1000)}_{audio_file.filename}" # From your code
-    file_path = os.path.join(TEMP_AUDIO_DIR, unique_suffix) # From your code
+    unique_suffix = f"{int(time.time() * 1000)}_{audio_file.filename}"
+    file_path = os.path.join(TEMP_AUDIO_DIR, unique_suffix)
     try:
         with open(file_path, "wb") as buffer: shutil.copyfileobj(audio_file.file, buffer)
         transcript = transcribe_audio_local(file_path)
         if not transcript: raise HTTPException(status_code=500, detail="CHW Mode: Transcription failed.")
-        
-        db_session = crud.create_consultation_session(db=db, patient_id=db_patient.id, mode="chw_triage_audio", transcript=transcript, session_uuid=session_uuid_str)
+        db_session = crud.create_consultation_session(
+            db=db, patient_id=db_patient.id, mode="chw_triage_audio", transcript=transcript, session_uuid=session_uuid_str, manual_context=manual_context
+        )
         symptoms = extract_symptoms_with_gemini(transcript)
         if isinstance(symptoms, dict) and "error" in symptoms: raise HTTPException(status_code=500, detail=f"CHW Mode: Symptom extraction error: {symptoms.get('error')}")
         retrieved_docs = retriever.retrieve_relevant_guidelines(symptoms, top_k=3)
         recommendation = generate_triage_recommendation(symptoms, retrieved_docs)
         if not recommendation or (isinstance(recommendation, dict) and "error" in recommendation): raise HTTPException(status_code=500, detail=f"CHW Mode: Recommendation error: {recommendation.get('error') if isinstance(recommendation, dict) else 'Unknown'}")
-        
-        crud.update_consultation_session_results(db=db, session_uuid=db_session.session_uuid, extracted_info={"symptoms":symptoms}, retrieved_docs_summary=[{"source": d.get("source_document_name"), "code": d.get("subsection_code"), "case": d.get("case"), "score": d.get("retrieval_score (distance)")} for d in retrieved_docs], final_recommendation=recommendation)
+        crud.update_consultation_session_results(
+            db=db, session_uuid=db_session.session_uuid, extracted_info={"symptoms":symptoms}, retrieved_docs_summary=[{"source": d.get("source_document_name"), "code": d.get("subsection_code"), "case": d.get("case"), "score": d.get("retrieval_score (distance)")} for d in retrieved_docs], final_recommendation=recommendation
+        )
         return {
-            "session_uuid": db_session.session_uuid, "mode": "chw_triage_audio", "transcript": transcript, "extracted_symptoms": symptoms,
+            "session_uuid": db_session.session_uuid, "mode": "chw_triage_audio", "transcript": transcript, "manual_context_provided": manual_context, "extracted_symptoms": symptoms,
             "retrieved_guidelines_summary": [{"source": d.get("source_document_name"), "code": d.get("subsection_code"), "case": d.get("case"), "score": d.get("retrieval_score (distance)")} for d in retrieved_docs],
             "triage_recommendation": recommendation
         }
