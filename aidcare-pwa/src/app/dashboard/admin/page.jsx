@@ -1,320 +1,100 @@
+// src/app/dashboard/admin/page.jsx
 "use client";
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { organizationService, userService, patientService } from '../../lib/services';
-import { useRouter } from 'next/navigation';
+import React from 'react';
+import { useAuth } from '../../context/AuthContext'; // Assuming this path is correct
+import { FiUsers, FiUserPlus } from 'react-icons/fi'; // Keep these
+import { MdBusiness } from 'react-icons/md';         // Import the new icon
+import Link from 'next/link';
 
 export default function AdminDashboard() {
-  const { user, logout } = useAuth();
-  const router = useRouter();
-  const [activeTab, setActiveTab] = useState('overview');
-  const [organizations, setOrganizations] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [patients, setPatients] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { user } = useAuth(); // Assuming logout is handled in a layout/header
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const [orgsResponse, usersResponse, patientsResponse] = await Promise.allSettled([
-        organizationService.getAllOrganizations(),
-        userService.getAllUsers(),
-        patientService.getOrganizationPatients()
-      ]);
-
-      if (orgsResponse.status === 'fulfilled') {
-        setOrganizations(orgsResponse.value.data || orgsResponse.value || []);
-      }
-      if (usersResponse.status === 'fulfilled') {
-        setUsers(usersResponse.value.data || usersResponse.value || []);
-      }
-      if (patientsResponse.status === 'fulfilled') {
-        setPatients(patientsResponse.value.data || patientsResponse.value || []);
-      }
-    } catch (err) {
-      setError('Failed to fetch data');
-      console.error('Error fetching data:', err);
-    } finally {
-      setLoading(false);
+  const adminCards = [
+    {
+      title: 'Organizations',
+      description: 'Manage healthcare organizations',
+      icon: <MdBusiness className="h-6 w-6" />, // Use the new icon
+      href: '/admin/organizations',
+      color: 'bg-blue-500' // Tailwind CSS class for background
+    },
+    {
+      title: 'Users',
+      description: 'Manage system users (Doctors, CHWs)',
+      icon: <FiUsers className="h-6 w-6" />,
+      href: '/admin/users',
+      color: 'bg-green-500'
+    },
+    {
+      title: 'Invite Users',
+      description: 'Send invitations to new doctors or CHWs',
+      icon: <FiUserPlus className="h-6 w-6" />,
+      href: '/admin/invite',
+      color: 'bg-purple-500'
     }
-  };
+  ];
 
-  const handleCreateOrganization = () => {
-    router.push('/dashboard/admin/create-organization');
+  // Placeholder for stats - these would come from an API call
+  const quickStats = {
+    totalOrganizations: 0, // Fetch from backend
+    totalUsers: 0,         // Fetch from backend
+    activeUsers: 0,        // Fetch from backend
+    pendingInvites: 0      // Fetch from backend
   };
-
-  const handleCreateUser = () => {
-    router.push('/dashboard/admin/create-user');
-  };
-
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <div>Loading admin dashboard...</div>
-      </div>
-    );
-  }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f5f5' }}>
-      {/* Header */}
-      <div style={{ 
-        background: 'white', 
-        padding: '1rem 2rem', 
-        borderBottom: '1px solid #e0e0e0',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <div>
-          <h1 style={{ margin: 0, color: '#333' }}>Admin Dashboard</h1>
-          <p style={{ margin: '0.5rem 0 0 0', color: '#666' }}>
-            Welcome back, {user?.firstName} {user?.lastName}
-          </p>
-        </div>
-        <button 
-          onClick={logout}
-          style={{
-            padding: '0.5rem 1rem',
-            background: '#dc3545',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          Logout
-        </button>
+    <div className="p-4 sm:p-6 md:p-8 bg-gray-50 min-h-screen"> {/* Added background and min-height */}
+      <div className="mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Admin Dashboard</h1>
+        <p className="mt-1 text-sm text-gray-600">
+          Welcome back, {user?.fullName || user?.email || 'Admin'}! {/* Using user.fullName or user.email */}
+        </p>
       </div>
 
-      {/* Navigation Tabs */}
-      <div style={{ background: 'white', padding: '0 2rem', borderBottom: '1px solid #e0e0e0' }}>
-        <div style={{ display: 'flex', gap: '2rem' }}>
-          {['overview', 'organizations', 'users', 'patients'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              style={{
-                padding: '1rem 0',
-                background: 'none',
-                border: 'none',
-                borderBottom: activeTab === tab ? '2px solid #007bff' : '2px solid transparent',
-                color: activeTab === tab ? '#007bff' : '#666',
-                cursor: 'pointer',
-                textTransform: 'capitalize',
-                fontWeight: activeTab === tab ? '600' : '400'
-              }}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
+      {/* Navigation Cards */}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 mb-8">
+        {adminCards.map((card) => (
+          <Link
+            key={card.title}
+            href={card.href}
+            className="group block p-6 bg-white rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 transition-all duration-200 ease-in-out transform hover:-translate-y-1"
+          >
+            <div className="flex items-start">
+              <div className={`flex-shrink-0 p-3 rounded-lg ${card.color} text-white`}>
+                {React.cloneElement(card.icon, { className: "h-7 w-7" })} {/* Ensure icon size */}
+              </div>
+              <div className="ml-5 flex-1">
+                <h2 className="text-lg font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors">
+                  {card.title}
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">{card.description}</p>
+              </div>
+            </div>
+          </Link>
+        ))}
       </div>
 
-      {/* Content */}
-      <div style={{ padding: '2rem' }}>
-        {error && (
-          <div style={{
-            background: '#f8d7da',
-            color: '#721c24',
-            padding: '1rem',
-            borderRadius: '4px',
-            marginBottom: '1rem'
-          }}>
-            {error}
+      {/* Quick Stats Section */}
+      <div>
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">Quick Stats</h2>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="bg-white p-6 rounded-xl shadow-lg">
+            <p className="text-sm font-medium text-gray-500">Total Organizations</p>
+            <p className="mt-1 text-3xl font-semibold text-gray-900">{quickStats.totalOrganizations}</p>
           </div>
-        )}
-
-        {activeTab === 'overview' && (
-          <div>
-            <h2>System Overview</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-              <div style={{ background: 'white', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: '#007bff' }}>Organizations</h3>
-                <p style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0 }}>{organizations.length}</p>
-              </div>
-              <div style={{ background: 'white', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: '#28a745' }}>Users</h3>
-                <p style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0 }}>{users.length}</p>
-              </div>
-              <div style={{ background: 'white', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: '#ffc107' }}>Patients</h3>
-                <p style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0 }}>{patients.length}</p>
-              </div>
-            </div>
+          <div className="bg-white p-6 rounded-xl shadow-lg">
+            <p className="text-sm font-medium text-gray-500">Total Users</p>
+            <p className="mt-1 text-3xl font-semibold text-gray-900">{quickStats.totalUsers}</p>
           </div>
-        )}
-
-        {activeTab === 'organizations' && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h2>Organizations</h2>
-              <button
-                onClick={handleCreateOrganization}
-                style={{
-                  padding: '0.5rem 1rem',
-                  background: '#007bff',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                Create Organization
-              </button>
-            </div>
-            <div style={{ background: 'white', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead style={{ background: '#f8f9fa' }}>
-                  <tr>
-                    <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>Name</th>
-                    <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>Description</th>
-                    <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {organizations.map((org, index) => (
-                    <tr key={org.id || index} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                      <td style={{ padding: '1rem' }}>{org.name}</td>
-                      <td style={{ padding: '1rem' }}>{org.description || 'No description'}</td>
-                      <td style={{ padding: '1rem' }}>
-                        <button
-                          style={{
-                            padding: '0.25rem 0.5rem',
-                            background: '#6c757d',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '0.875rem'
-                          }}
-                        >
-                          View
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="bg-white p-6 rounded-xl shadow-lg">
+            <p className="text-sm font-medium text-gray-500">Active Users</p>
+            <p className="mt-1 text-3xl font-semibold text-gray-900">{quickStats.activeUsers}</p>
           </div>
-        )}
-
-        {activeTab === 'users' && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h2>Users</h2>
-              <button
-                onClick={handleCreateUser}
-                style={{
-                  padding: '0.5rem 1rem',
-                  background: '#28a745',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                Create User
-              </button>
-            </div>
-            <div style={{ background: 'white', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead style={{ background: '#f8f9fa' }}>
-                  <tr>
-                    <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>Name</th>
-                    <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>Email</th>
-                    <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>Role</th>
-                    <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((user, index) => (
-                    <tr key={user.id || index} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                      <td style={{ padding: '1rem' }}>{user.firstName} {user.lastName}</td>
-                      <td style={{ padding: '1rem' }}>{user.email}</td>
-                      <td style={{ padding: '1rem' }}>
-                        <span style={{
-                          padding: '0.25rem 0.5rem',
-                          background: user.role === 'admin' ? '#dc3545' : user.role === 'consultant' ? '#007bff' : '#28a745',
-                          color: 'white',
-                          borderRadius: '12px',
-                          fontSize: '0.75rem',
-                          textTransform: 'uppercase'
-                        }}>
-                          {user.role}
-                        </span>
-                      </td>
-                      <td style={{ padding: '1rem' }}>
-                        <button
-                          style={{
-                            padding: '0.25rem 0.5rem',
-                            background: '#6c757d',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '0.875rem'
-                          }}
-                        >
-                          Edit
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="bg-white p-6 rounded-xl shadow-lg">
+            <p className="text-sm font-medium text-gray-500">Pending Invites</p>
+            <p className="mt-1 text-3xl font-semibold text-gray-900">{quickStats.pendingInvites}</p>
           </div>
-        )}
-
-        {activeTab === 'patients' && (
-          <div>
-            <h2>Patients</h2>
-            <div style={{ background: 'white', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead style={{ background: '#f8f9fa' }}>
-                  <tr>
-                    <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>Name</th>
-                    <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>Date of Birth</th>
-                    <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>Gender</th>
-                    <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {patients.map((patient, index) => (
-                    <tr key={patient.id || index} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                      <td style={{ padding: '1rem' }}>{patient.firstName} {patient.lastName}</td>
-                      <td style={{ padding: '1rem' }}>{patient.dateOfBirth || 'N/A'}</td>
-                      <td style={{ padding: '1rem' }}>{patient.gender || 'N/A'}</td>
-                      <td style={{ padding: '1rem' }}>
-                        <button
-                          style={{
-                            padding: '0.25rem 0.5rem',
-                            background: '#007bff',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '0.875rem'
-                          }}
-                        >
-                          View
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
-} 
+}

@@ -10,8 +10,12 @@ import AlertsFlagsDisplay from '../../components/AlertsFlagsDisplay';
 import SummaryDisplay from '../../components/SummaryDisplay'; 
 import DocumentUploader from '@/app/components/DocumentUploader';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
+import { useAuth } from '../../context/AuthContext';
+import { useRouter } from 'next/navigation';
 
 export default function ClinicalSupportPage() {
+  const { user, logout } = useAuth();
+  const router = useRouter();
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -156,28 +160,111 @@ export default function ClinicalSupportPage() {
   const clinicalDetails = apiResult?.clinical_support_details;
 
   return (
-    <main style={{ padding: '20px', maxWidth: '900px', margin: '0 auto' }}>
-      <header style={{ textAlign: 'center', marginBottom: '30px' }}>
-        <h1>AidCare Clinical Support</h1>
-        {/* Basic Patient ID input for testing */}
-        <div style={{ margin: '10px 0' }}>
-          <label htmlFor="patientIdInput">Test Patient UUID: </label>
-          <input 
-            id="patientIdInput"
-            type="text" 
-            value={currentPatientUuid} 
-            onChange={(e) => {
-              setCurrentPatientUuid(e.target.value);
-              // When UUID changes, existing consultation results are no longer valid for the new patient
-              setApiResult(null); 
-                setErrorMessage('');
-            } }
-            placeholder="Enter Patient UUID"
-            style={{padding: "5px"}}
-            disabled={isLoading || isRecording}
-          />
+    <div style={{ minHeight: '100vh', background: '#f5f5f5' }}>
+      {/* Header */}
+      <div style={{ 
+        background: 'white', 
+        padding: '1rem 2rem', 
+        borderBottom: '1px solid #e0e0e0',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <div>
+          <h1 style={{ margin: 0, color: '#333' }}>AI Clinical Support</h1>
+          <p style={{ margin: '0.5rem 0 0 0', color: '#666' }}>
+            AI-powered clinical decision support system
+          </p>
         </div>
-      </header>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <span style={{ 
+            padding: '0.25rem 0.75rem',
+            background: user?.role === 'admin' ? '#dc3545' : user?.role === 'consultant' ? '#007bff' : '#28a745',
+            color: 'white',
+            borderRadius: '12px',
+            fontSize: '0.8rem',
+            textTransform: 'uppercase',
+            fontWeight: '600'
+          }}>
+            {user?.role || 'User'}
+          </span>
+          <button 
+            onClick={() => router.push('/dashboard')}
+            style={{
+              padding: '0.5rem 1rem',
+              background: '#6c757d',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              marginRight: '0.5rem'
+            }}
+          >
+            Dashboard
+          </button>
+          <button 
+            onClick={logout}
+            style={{
+              padding: '0.5rem 1rem',
+              background: '#dc3545',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Logout
+          </button>
+        </div>
+      </div>
+
+      <main style={{ padding: '20px', maxWidth: '900px', margin: '0 auto' }}>
+        {/* Patient ID input for testing */}
+        <div style={{ 
+          background: 'white', 
+          padding: '1.5rem', 
+          borderRadius: '8px', 
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)', 
+          marginBottom: '20px'
+        }}>
+          <h3 style={{ margin: '0 0 1rem 0' }}>Patient Selection</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <label htmlFor="patientIdInput" style={{ fontWeight: '500' }}>Patient UUID:</label>
+            <input 
+              id="patientIdInput"
+              type="text" 
+              value={currentPatientUuid} 
+              onChange={(e) => {
+                setCurrentPatientUuid(e.target.value);
+                setApiResult(null); 
+                setErrorMessage('');
+              }}
+              placeholder="Enter Patient UUID"
+              style={{
+                flex: 1,
+                padding: "0.75rem",
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '1rem'
+              }}
+              disabled={isLoading || isRecording}
+            />
+            <button
+              onClick={() => router.push('/patients')}
+              style={{
+                padding: '0.75rem 1rem',
+                background: '#007bff',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Select Patient
+            </button>
+          </div>
+        </div>
 
             {/* Consultation Input Area */}
       <section style={{ marginBottom: '20px', padding: '15px', border: '1px solid #ccc', borderRadius: '8px' }}>
@@ -290,5 +377,6 @@ export default function ClinicalSupportPage() {
         </button>
       )}
     </main>
+    </div>
   );
 }

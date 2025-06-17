@@ -7,5 +7,5 @@ export const metadata = {
 
 export default function DoctorConsultLayout({ children }) {
 
-  return <ProtectedRoute allowedRoles={['doctor', 'org_admin']}>{children}</ProtectedRoute>;
+  return <ProtectedRoute allowedRoles={['admin', 'consultant', 'doctor', 'chw']}>{children}</ProtectedRoute>;
 }

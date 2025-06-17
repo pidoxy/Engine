@@ -1,183 +1,147 @@
 // src/app/context/AuthContext.js
 "use client"; // This context provider will be used in client components
 
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation'; // For redirection
-import { userService } from '../lib/services';
+import { userService } from '../lib/services/userService';
+import api from '../lib/api';
 
-const AuthStateContext = createContext(undefined);
-const AuthDispatchContext = createContext(undefined);
-
-const initialState = {
-  isAuthenticated: false,
-  user: null, // Will store { id, email, role, organization_id, etc. }
-  token: null,
-  isLoading: true, // Start as true to check for persisted session
-};
-
-function authReducer(state, action) {
-  switch (action.type) {
-    case 'INITIALIZE': // When checking localStorage finishes
-      return {
-        ...state,
-        isAuthenticated: !!action.payload.token && !!action.payload.user,
-        user: action.payload.user || null,
-        token: action.payload.token || null,
-        isLoading: false,
-      };
-    case 'LOGIN_REQUEST':
-      return {
-        ...state,
-        isLoading: true,
-      };
-    case 'LOGIN_SUCCESS':
-      return {
-        ...state,
-        isAuthenticated: true,
-        user: action.payload.user,
-        token: action.payload.token,
-        isLoading: false,
-      };
-    case 'LOGIN_FAILURE':
-      return {
-        ...state,
-        isAuthenticated: false,
-        user: null,
-        token: null,
-        isLoading: false,
-      };
-    case 'LOGOUT':
-      return {
-        ...initialState,
-        isLoading: false, // Set loading to false after logout
-      };
-    case 'UPDATE_USER':
-      return {
-        ...state,
-        user: { ...state.user, ...action.payload },
-      };
-    default:
-      throw new Error(`Unhandled action type: ${action.type}`);
-  }
-}
+const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [state, dispatch] = useReducer(authReducer, initialState);
-
-  useEffect(() => {
-    // Check for existing token in localStorage on initial app load
-    // This provides basic session persistence across page reloads.
-    // For production, consider more secure token storage or server-side session checks.
-    const initializeAuth = async () => {
-      try {
-        const token = localStorage.getItem('aidcareAuthToken');
-        const userString = localStorage.getItem('aidcareUser');
-        
-        if (token && userString) {
-          const user = JSON.parse(userString);
-          
-          // Verify token with backend
-          try {
-            const currentUser = await userService.getCurrentUser();
-            console.log("AuthContext: Token verified, user data:", currentUser);
-            dispatch({ 
-              type: 'LOGIN_SUCCESS', 
-              payload: { 
-                token, 
-                user: currentUser.data || currentUser 
-              } 
-            });
-          } catch (error) {
-            console.log("AuthContext: Token verification failed", error);
-            // Token is invalid, clear storage
-            localStorage.removeItem('aidcareAuthToken');
-            localStorage.removeItem('aidcareUser');
-            dispatch({ type: 'INITIALIZE', payload: {} });
-          }
-        } else {
-          console.log("AuthContext: No token/user in localStorage.");
-          dispatch({ type: 'INITIALIZE', payload: {} }); // No persisted session
-        }
-      } catch (error) {
-        console.error("AuthContext: Error loading auth state from localStorage", error);
-        dispatch({ type: 'INITIALIZE', payload: {} }); // Error, assume no session
-      }
-    };
-
-    initializeAuth();
-  }, []); // Run only once on mount
-
-  return (
-    <AuthStateContext.Provider value={state}>
-      <AuthDispatchContext.Provider value={dispatch}>
-        {children}
-      </AuthDispatchContext.Provider>
-    </AuthStateContext.Provider>
-  );
-}
-
-export function useAuthState() {
-  const context = useContext(AuthStateContext);
-  if (context === undefined) {
-    throw new Error('useAuthState must be used within an AuthProvider');
-  }
-  return context;
-}
-
-export function useAuthDispatch() {
-  const context = useContext(AuthDispatchContext);
-  if (context === undefined) {
-    throw new Error('useAuthDispatch must be used within an AuthProvider');
-  }
-  return context;
-}
-
-// Helper functions for authentication actions
-export function useAuth() {
-  const state = useAuthState();
-  const dispatch = useAuthDispatch();
+  const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [dashboardUrl, setDashboardUrl] = useState('/login');
   const router = useRouter();
 
+  const updateUserAndUrl = useCallback((userData) => {
+    console.log('Updating user and URL with:', userData);
+    setUser(userData);
+    setIsAuthenticated(!!userData);
+    
+    if (userData) {
+      let newDashboardUrl = '/login';
+      switch (userData.role) {
+        case 'admin':
+          newDashboardUrl = '/dashboard/admin';
+          break;
+        case 'consultant':
+          newDashboardUrl = '/dashboard/doctor';
+          break;
+        case 'chw':
+          newDashboardUrl = '/dashboard/chw';
+          break;
+        default:
+          newDashboardUrl = '/login';
+          break;
+      }
+      console.log('Setting dashboard URL to:', newDashboardUrl);
+      setDashboardUrl(newDashboardUrl);
+    } else {
+      setDashboardUrl('/login');
+    }
+  }, []);
+
+  const initializeAuth = useCallback(async () => {
+    console.log('Initializing auth...');
+    const token = localStorage.getItem('jwt_token');
+    console.log('Found token:', !!token);
+    
+    if (token) {
+      try {
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        const response = await userService.getCurrentUser();
+        console.log('Got current user:', response.data);
+        updateUserAndUrl(response.data.data);
+      } catch (e) {
+        console.error("Session expired or invalid, logging out.", e);
+        localStorage.removeItem('jwt_token');
+        delete api.defaults.headers.common['Authorization'];
+        updateUserAndUrl(null);
+      }
+    } else {
+      updateUserAndUrl(null);
+    }
+    setIsLoading(false);
+  }, [updateUserAndUrl]);
+
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]);
+
   const login = async (credentials) => {
+    console.log('Attempting login...');
     try {
-      dispatch({ type: 'LOGIN_REQUEST' });
-      
+      setIsLoading(true);
       const response = await userService.login(credentials);
-      const { token, user } = response.data || response;
+      console.log('Login response:', response.data);
       
-      // Store in localStorage
-      localStorage.setItem('aidcareAuthToken', token);
-      localStorage.setItem('aidcareUser', JSON.stringify(user));
+      const { token, user: loggedInUser } = response.data.data;
       
-      dispatch({ 
-        type: 'LOGIN_SUCCESS', 
-        payload: { token, user } 
-      });
+      if (!token || !loggedInUser) {
+        throw new Error('Invalid login response - missing token or user data');
+      }
       
-      return { success: true, data: response };
+      localStorage.setItem('jwt_token', token);
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      
+      updateUserAndUrl(loggedInUser);
+
+      // Compute dashboard URL directly based on user role
+      let newDashboardUrl = '/login';
+      switch (loggedInUser.role) {
+        case 'admin':
+          newDashboardUrl = '/dashboard/admin';
+          break;
+        case 'consultant':
+          newDashboardUrl = '/dashboard/doctor';
+          break;
+        case 'chw':
+          newDashboardUrl = '/dashboard/chw';
+          break;
+        default:
+          newDashboardUrl = '/login';
+          break;
+      }
+      console.log('Redirecting to:', newDashboardUrl);
+      router.push(newDashboardUrl);
     } catch (error) {
-      dispatch({ type: 'LOGIN_FAILURE' });
+      console.error('Login error:', error);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('aidcareAuthToken');
-    localStorage.removeItem('aidcareUser');
-    dispatch({ type: 'LOGOUT' });
+  const logout = useCallback(() => {
+    console.log('Logging out...');
+    localStorage.removeItem('jwt_token');
+    delete api.defaults.headers.common['Authorization'];
+    updateUserAndUrl(null);
     router.push('/login');
-  };
+  }, [router, updateUserAndUrl]);
 
-  const updateUser = (userData) => {
-    const updatedUser = { ...state.user, ...userData };
-    localStorage.setItem('aidcareUser', JSON.stringify(updatedUser));
-    dispatch({ type: 'UPDATE_USER', payload: userData });
-  };
-
-  return {
-    ...state,
+  const value = {
+    user,
+    isAuthenticated,
+    isLoading,
+    dashboardUrl,
     login,
     logout,
-    updateUser,
   };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
