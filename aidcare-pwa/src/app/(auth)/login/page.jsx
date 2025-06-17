@@ -3,118 +3,91 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useAuthState, useAuthDispatch } from '../../context/AuthContext'; // Adjust path
-
-// Mock API URL - replace with your actual backend URL when ready
-const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || 'http://localhost:8000';
-
-// Placeholder for your actual API call function
-async function loginUserApi(email, password) {
-  // In a real app, this would make a fetch request to your backend
-  // For now, we mock it.
-  console.log("Attempting login for:", email);
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 1000));
-
-  // --- MOCK API RESPONSE ---
-  // Replace this with actual fetch to `${FASTAPI_URL}/auth/login`
-  if (email === "doctor@aidcare.com" && password === "password") {
-    return {
-      access_token: "mock_doctor_jwt_token_string",
-      token_type: "bearer",
-      user: { 
-        id: "doc123", 
-        email: "doctor@aidcare.com", 
-        role: "doctor", 
-        organization_id: "org789",
-        fullName: "Dr. Ada Lovelace" 
-      }
-    };
-  } else if (email === "chw@aidcare.com" && password === "password") {
-    return {
-      access_token: "mock_chw_jwt_token_string",
-      token_type: "bearer",
-      user: { 
-        id: "chw456", 
-        email: "chw@aidcare.com", 
-        role: "chw", 
-        organization_id: "org789",
-        fullName: "Mr. Charles Babbage"
-      }
-    };
-  } else {
-    throw new Error("Incorrect email or password (mock error)");
-  }
-  // --- END MOCK API RESPONSE ---
-}
-
+import { useAuth } from '../../context/AuthContext';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false); // Renamed from isLoading for clarity
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const router = useRouter();
   const searchParams = useSearchParams();
-  const dispatch = useAuthDispatch();
-  const { isAuthenticated, isLoading: authIsLoading } = useAuthState(); // Get auth loading state
+  const { isAuthenticated, isLoading: authIsLoading, login } = useAuth();
 
-  const messageFromSignup = searchParams.get('message'); // For messages from signup page
+  const messageFromSignup = searchParams.get('message');
 
   // Redirect if already authenticated
   useEffect(() => {
     if (!authIsLoading && isAuthenticated) {
       console.log("User already authenticated, redirecting from login...");
-      router.replace('/dashboard'); // Or role-specific dashboard
+      router.replace('/dashboard');
     }
   }, [isAuthenticated, authIsLoading, router]);
-
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError('');
-    dispatch({ type: 'LOGIN_REQUEST' });
 
     try {
-      // const response = await fetch(`${FASTAPI_URL}/auth/login`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ email, password }),
-      // });
-      // const data = await response.json();
-      // if (!response.ok) throw new Error(data.detail || 'Login failed');
+      const response = await login({ email, password });
       
-      // Using mocked API call for now:
-      const data = await loginUserApi(email, password);
+      // Redirect based on role
+      const user = response.data?.user || response.data?.data?.user;
+      const role = user?.role;
       
-      dispatch({ type: 'LOGIN_SUCCESS', payload: { token: data.access_token, user: data.user } });
-      
-      // Persist token and user info (simple localStorage example)
-      localStorage.setItem('aidcareAuthToken', data.access_token);
-      localStorage.setItem('aidcareUser', JSON.stringify(data.user));
-
-      // Redirect based on role (example) - adapt to your actual dashboard routes
-      const role = data.user?.role;
-      if (role === 'org_admin') router.push('/organization/dashboard'); // Create these pages later
-      else if (role === 'doctor') router.push('/doctor/dashboard'); // Create these pages later
-      else if (role === 'chw') router.push('/chw/dashboard');       // Create these pages later
-      else router.push('/dashboard'); // Generic dashboard
+      if (role === 'admin') {
+        router.push('/dashboard/admin');
+      } else if (role === 'consultant' || role === 'doctor') {
+        router.push('/dashboard/doctor');
+      } else if (role === 'chw') {
+        router.push('/dashboard/chw');
+      } else {
+        router.push('/dashboard');
+      }
       
     } catch (err) {
-      setError(err.message);
-      dispatch({ type: 'LOGIN_FAILURE' });
+      console.error('Login error:', err);
+      setError(err.response?.data?.message || err.message || 'Login failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   if (authIsLoading) {
-    return <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh'}}><p>Loading...</p></div>; // Or your LoadingSpinner
+    return (
+      <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh'}}>
+        <div style={{textAlign: 'center'}}>
+          <div style={{marginBottom: '20px'}}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              border: '4px solid #f3f3f3',
+              borderTop: '4px solid #007bff',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+              margin: '0 auto'
+            }}></div>
+          </div>
+          <p>Loading...</p>
+        </div>
+        <style jsx>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
   }
-  if (isAuthenticated) { // Should be caught by useEffect, but as a fallback
-      return <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh'}}><p>Redirecting...</p></div>;
+
+  if (isAuthenticated) {
+    return (
+      <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh'}}>
+        <p>Redirecting...</p>
+      </div>
+    );
   }
 
   return (
@@ -123,38 +96,110 @@ export default function LoginPage() {
         <h2 style={{ textAlign: 'center', marginBottom: '10px', color: '#333' }}>Welcome back</h2>
         <p style={{ textAlign: 'center', marginBottom: '25px', color: '#555' }}>Log in to your AidCare account.</p>
         
-        {messageFromSignup && <p style={{color: 'green', textAlign: 'center', marginBottom: '15px', background: '#e6ffed', border: '1px solid #b7ebc3', padding: '10px', borderRadius: '4px'}}>{messageFromSignup}</p>}
+        {messageFromSignup && (
+          <p style={{
+            color: 'green', 
+            textAlign: 'center', 
+            marginBottom: '15px', 
+            background: '#e6ffed', 
+            border: '1px solid #b7ebc3', 
+            padding: '10px', 
+            borderRadius: '4px'
+          }}>
+            {messageFromSignup}
+          </p>
+        )}
         
         <form onSubmit={handleSubmit}>
           <div style={{marginBottom: '15px'}}>
             <label htmlFor="email" style={labelStyle}>Email address</label>
-            <input type="email" id="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={inputStyle} placeholder="you@example.com" />
+            <input 
+              type="email" 
+              id="email" 
+              value={email} 
+              onChange={(e) => setEmail(e.target.value)} 
+              required 
+              style={inputStyle} 
+              placeholder="you@example.com"
+              disabled={isSubmitting}
+            />
           </div>
           <div style={{marginBottom: '20px'}}>
             <label htmlFor="password" style={labelStyle}>Password</label>
-            <input type="password" id="password" value={password} onChange={(e) => setPassword(e.target.value)} required style={inputStyle} placeholder="••••••••" />
-            {/* Add show/hide password toggle functionality here later */}
+            <input 
+              type="password" 
+              id="password" 
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)} 
+              required 
+              style={inputStyle} 
+              placeholder="••••••••"
+              disabled={isSubmitting}
+            />
           </div>
-          {error && <p style={{ color: 'red', textAlign: 'center', marginBottom: '15px' }}>{error}</p>}
-          <button type="submit" disabled={isSubmitting} style={buttonStyle}>
+          {error && (
+            <p style={{ 
+              color: '#dc3545', 
+              textAlign: 'center', 
+              marginBottom: '15px',
+              background: '#f8d7da',
+              border: '1px solid #f5c6cb',
+              padding: '10px',
+              borderRadius: '4px',
+              fontSize: '0.9em'
+            }}>
+              {error}
+            </p>
+          )}
+          <button 
+            type="submit" 
+            disabled={isSubmitting} 
+            style={{
+              ...buttonStyle,
+              opacity: isSubmitting ? 0.7 : 1,
+              cursor: isSubmitting ? 'not-allowed' : 'pointer'
+            }}
+          >
             {isSubmitting ? 'Logging in...' : 'Log in'}
           </button>
         </form>
+        
         <div style={{textAlign: 'center', marginTop: '20px', fontSize: '0.9em'}}>
-          <Link href="/forgot-password" style={{color: '#007bff', textDecoration: 'none'}}>Forgot your password?</Link>
+          <Link href="/forgot-password" style={{color: '#007bff', textDecoration: 'none'}}>
+            Forgot your password?
+          </Link>
           <p style={{marginTop: '15px', color: '#555'}}>
             Don't have an account? <Link href="/signup" style={{color: '#007bff', fontWeight: '500', textDecoration: 'none'}}>Sign up</Link>
           </p>
         </div>
-         <p style={{fontSize: '0.75em', color: '#888', textAlign: 'center', marginTop: '40px'}}>
-            By continuing, you agree to AidCare's <Link href="/terms" style={{color: '#555'}}>Terms of Use</Link> and <Link href="/privacy" style={{color: '#555'}}>Privacy Policy</Link>.
+        
+        <p style={{fontSize: '0.75em', color: '#888', textAlign: 'center', marginTop: '40px'}}>
+          By continuing, you agree to AidCare's <Link href="/terms" style={{color: '#555'}}>Terms of Use</Link> and <Link href="/privacy" style={{color: '#555'}}>Privacy Policy</Link>.
         </p>
       </div>
     </div>
   );
 }
 
-// Basic styles (can move to CSS Modules)
+// Basic styles
 const labelStyle = {display: 'block', marginBottom: '5px', fontWeight: '500', color: '#444'};
-const inputStyle = {width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box', fontSize: '1em'};
-const buttonStyle = {width: '100%', padding: '12px', background: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '1em', fontWeight: '500'};
+const inputStyle = {
+  width: '100%', 
+  padding: '10px', 
+  borderRadius: '4px', 
+  border: '1px solid #ccc', 
+  boxSizing: 'border-box', 
+  fontSize: '1em',
+  transition: 'border-color 0.2s ease'
+};
+const buttonStyle = {
+  width: '100%', 
+  padding: '12px', 
+  background: '#007bff', 
+  color: 'white', 
+  border: 'none', 
+  borderRadius: '4px', 
+  fontSize: '1em', 
+  fontWeight: '500',
+  transition: 'background-color 0.2s ease'
+};

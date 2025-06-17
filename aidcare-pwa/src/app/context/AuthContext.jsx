@@ -3,6 +3,7 @@
 
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { useRouter } from 'next/navigation'; // For redirection
+import { userService } from '../lib/services';
 
 const AuthStateContext = createContext(undefined);
 const AuthDispatchContext = createContext(undefined);
@@ -50,6 +51,11 @@ function authReducer(state, action) {
         ...initialState,
         isLoading: false, // Set loading to false after logout
       };
+    case 'UPDATE_USER':
+      return {
+        ...state,
+        user: { ...state.user, ...action.payload },
+      };
     default:
       throw new Error(`Unhandled action type: ${action.type}`);
   }
@@ -62,23 +68,43 @@ export function AuthProvider({ children }) {
     // Check for existing token in localStorage on initial app load
     // This provides basic session persistence across page reloads.
     // For production, consider more secure token storage or server-side session checks.
-    try {
-      const token = localStorage.getItem('aidcareAuthToken');
-      const userString = localStorage.getItem('aidcareUser');
-      if (token && userString) {
-        const user = JSON.parse(userString);
-        // TODO: Optionally verify token with a backend endpoint here
-        // If token is valid, dispatch LOGIN_SUCCESS, else dispatch LOGOUT
-        console.log("AuthContext: Found token and user in localStorage", {token, user});
-        dispatch({ type: 'LOGIN_SUCCESS', payload: { token, user } });
-      } else {
-        console.log("AuthContext: No token/user in localStorage.");
-        dispatch({ type: 'INITIALIZE', payload: {} }); // No persisted session
-      }
-    } catch (error) {
+    const initializeAuth = async () => {
+      try {
+        const token = localStorage.getItem('aidcareAuthToken');
+        const userString = localStorage.getItem('aidcareUser');
+        
+        if (token && userString) {
+          const user = JSON.parse(userString);
+          
+          // Verify token with backend
+          try {
+            const currentUser = await userService.getCurrentUser();
+            console.log("AuthContext: Token verified, user data:", currentUser);
+            dispatch({ 
+              type: 'LOGIN_SUCCESS', 
+              payload: { 
+                token, 
+                user: currentUser.data || currentUser 
+              } 
+            });
+          } catch (error) {
+            console.log("AuthContext: Token verification failed", error);
+            // Token is invalid, clear storage
+            localStorage.removeItem('aidcareAuthToken');
+            localStorage.removeItem('aidcareUser');
+            dispatch({ type: 'INITIALIZE', payload: {} });
+          }
+        } else {
+          console.log("AuthContext: No token/user in localStorage.");
+          dispatch({ type: 'INITIALIZE', payload: {} }); // No persisted session
+        }
+      } catch (error) {
         console.error("AuthContext: Error loading auth state from localStorage", error);
         dispatch({ type: 'INITIALIZE', payload: {} }); // Error, assume no session
-    }
+      }
+    };
+
+    initializeAuth();
   }, []); // Run only once on mount
 
   return (
@@ -104,4 +130,54 @@ export function useAuthDispatch() {
     throw new Error('useAuthDispatch must be used within an AuthProvider');
   }
   return context;
+}
+
+// Helper functions for authentication actions
+export function useAuth() {
+  const state = useAuthState();
+  const dispatch = useAuthDispatch();
+  const router = useRouter();
+
+  const login = async (credentials) => {
+    try {
+      dispatch({ type: 'LOGIN_REQUEST' });
+      
+      const response = await userService.login(credentials);
+      const { token, user } = response.data || response;
+      
+      // Store in localStorage
+      localStorage.setItem('aidcareAuthToken', token);
+      localStorage.setItem('aidcareUser', JSON.stringify(user));
+      
+      dispatch({ 
+        type: 'LOGIN_SUCCESS', 
+        payload: { token, user } 
+      });
+      
+      return { success: true, data: response };
+    } catch (error) {
+      dispatch({ type: 'LOGIN_FAILURE' });
+      throw error;
+    }
+  };
+
+  const logout = () => {
+    localStorage.removeItem('aidcareAuthToken');
+    localStorage.removeItem('aidcareUser');
+    dispatch({ type: 'LOGOUT' });
+    router.push('/login');
+  };
+
+  const updateUser = (userData) => {
+    const updatedUser = { ...state.user, ...userData };
+    localStorage.setItem('aidcareUser', JSON.stringify(updatedUser));
+    dispatch({ type: 'UPDATE_USER', payload: userData });
+  };
+
+  return {
+    ...state,
+    login,
+    logout,
+    updateUser,
+  };
 }
