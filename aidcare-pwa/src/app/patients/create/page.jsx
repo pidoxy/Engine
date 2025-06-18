@@ -142,7 +142,7 @@ export default function CreatePatientPage() {
           // Create patient with documents in AI backend
           const aiPatientData = {
             ...formData,
-            id: createdPatient.id // Use the ID from main backend
+            patient_uuid: createdPatient.patient_uuid || createdPatient.id // Use patient_uuid if available, fallback to id
           };
           
           const aiBackendResponse = await patientService.createPatientWithDocuments(aiPatientData, medicalFiles);
@@ -182,9 +182,14 @@ export default function CreatePatientPage() {
       });
       setMedicalFiles([]);
 
-      // Redirect to patient list after 3 seconds
+      // Redirect to consult page with patient ID after 3 seconds
       setTimeout(() => {
-        router.push('/patients');
+        if (createdPatient && (createdPatient.id || createdPatient._id)) {
+          const patientId = createdPatient.id || createdPatient._id;
+          router.push(`/doctor/consult?patient=${patientId}`);
+        } else {
+          router.push('/patients'); // fallback
+        }
       }, 3000);
 
     } catch (err) {
