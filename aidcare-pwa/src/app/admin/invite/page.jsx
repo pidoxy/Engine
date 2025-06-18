@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiUser, FiMail, FiClipboard, FiCheck, FiChevronDown, FiPlus } from 'react-icons/fi';
 import { Base64 } from 'js-base64';
-import { useAuth } from '../../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 
 export default function InviteUsersPage() {
   const [formData, setFormData] = useState({

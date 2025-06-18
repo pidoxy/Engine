@@ -30,7 +30,7 @@ function AdminNav() {
   const navItems = [
     { href: '/admin', label: 'Overview' },
     { href: '/admin/invite', label: 'Invite Users' },
-    { href: '/admin/organizations', label: 'Organizations' },
+    { href: '/patients', label: 'Patients' },
     { href: '/admin/users', label: 'Users' },
   ];
 

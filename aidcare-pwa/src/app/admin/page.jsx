@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { organizationService, userService, patientService } from '../../lib/services';
+import { useAuth } from '../context/AuthContext';
+import { organizationService, userService, patientService } from '../lib/services';
 import { useRouter } from 'next/navigation';
 
 export default function AdminDashboard() {
@@ -14,23 +14,48 @@ export default function AdminDashboard() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (user?.role === 'admin') {
     fetchData();
-  }, []);
+    } else {
+      fetchNonAdminData();
+    }
+  }, [user]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [orgsResponse, usersResponse, patientsResponse] = await Promise.allSettled([
+      const [orgsResponse, orgUsersResponse, patientsResponse] = await Promise.allSettled([
         organizationService.getAllOrganizations(),
-        userService.getAllUsers(),
+        userService.getOrganizationUsers(),
         patientService.getOrganizationPatients()
       ]);
 
       if (orgsResponse.status === 'fulfilled') {
         setOrganizations(orgsResponse.value.data || orgsResponse.value || []);
       }
-      if (usersResponse.status === 'fulfilled') {
-        setUsers(usersResponse.value.data || usersResponse.value || []);
+      if (orgUsersResponse.status === 'fulfilled') {
+        setUsers(orgUsersResponse.value.data || orgUsersResponse.value || []);
+      }
+      if (patientsResponse.status === 'fulfilled') {
+        setPatients(patientsResponse.value.data || patientsResponse.value || []);
+      }
+    } catch (err) {
+      setError('Failed to fetch data');
+      console.error('Error fetching data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchNonAdminData = async () => {
+    try {
+      setLoading(true);
+      const [orgUsersResponse, patientsResponse] = await Promise.allSettled([
+        userService.getOrganizationUsers(),
+        patientService.getOrganizationPatients()
+      ]);
+      if (orgUsersResponse.status === 'fulfilled') {
+        setUsers(orgUsersResponse.value.data || orgUsersResponse.value || []);
       }
       if (patientsResponse.status === 'fulfilled') {
         setPatients(patientsResponse.value.data || patientsResponse.value || []);
@@ -86,6 +111,31 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {/* Quick Stats Section */}
+      <div>
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">Quick Stats</h2>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {user?.role === 'admin' && (
+            <div className="bg-white p-6 rounded-xl shadow-lg">
+              <p className="text-sm font-medium text-gray-500">Total Organizations</p>
+              <p className="mt-1 text-3xl font-semibold text-gray-900">{organizations.length}</p>
+            </div>
+          )}
+          <div className="bg-white p-6 rounded-xl shadow-lg">
+            <p className="text-sm font-medium text-gray-500">Total Users</p>
+            <p className="mt-1 text-3xl font-semibold text-gray-900">{users.length}</p>
+          </div>
+          <div className="bg-white p-6 rounded-xl shadow-lg">
+            <p className="text-sm font-medium text-gray-500">Active Users</p>
+            <p className="mt-1 text-3xl font-semibold text-gray-900">{users.filter(u => u.isActive).length}</p>
+          </div>
+          <div className="bg-white p-6 rounded-xl shadow-lg">
+            <p className="text-sm font-medium text-gray-500">Pending Invites</p>
+            <p className="mt-1 text-3xl font-semibold text-gray-900">0</p>
+          </div>
+        </div>
+      </div>
+
       {/* Users Table for Admins */}
       {user?.role === 'admin' && (
         <div className="mt-12">
@@ -107,8 +157,8 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {users.map((u) => (
-                    <tr key={u.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{u.name}</td>
+                    <tr key={u._id || u.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{u.firstName} {u.lastName}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{u.email}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{u.role}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">

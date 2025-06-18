@@ -116,15 +116,15 @@ export default function SignupPage() {
                 <label htmlFor="organizationName" className="block text-sm font-medium text-gray-700">Organization Name</label>
                 <div className="mt-1">
                   <input type="text" name="organizationName" id="organizationName" required value={formData.organizationName} onChange={handleChange} className={inputStyle} />
-                </div>
-              </div>
+          </div>
+          </div>
               <div>
                 <label htmlFor="organizationDescription" className="block text-sm font-medium text-gray-700">Description</label>
                 <div className="mt-1">
                   <textarea id="organizationDescription" name="organizationDescription" rows={3} value={formData.organizationDescription} onChange={handleChange} className={inputStyle} />
-                </div>
-              </div>
-            </div>
+          </div>
+          </div>
+          </div>
 
             {error && <p className="text-sm text-red-600 text-center">{error}</p>}
 
@@ -136,9 +136,9 @@ export default function SignupPage() {
               >
                 <FiPlusCircle className="mr-2" />
                 {isSubmitting ? 'Creating Organization...' : 'Create Organization'}
-              </button>
+          </button>
             </div>
-          </form>
+        </form>
         </div>
       </div>
     </div>

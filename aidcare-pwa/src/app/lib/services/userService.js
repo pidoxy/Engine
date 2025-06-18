@@ -102,5 +102,11 @@ export const userService = {
     } catch (error) {
       throw error;
     }
+  },
+
+  // Get users in the current user's organization
+  getOrganizationUsers: async () => {
+    const response = await api.get('/user/organization');
+    return response.data;
   }
 }; 

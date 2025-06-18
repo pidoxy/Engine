@@ -173,7 +173,7 @@ export default function TriagePage() {
             Logout
           </button>
         </div>
-      </header>
+        </header>
 
       <main style={{ padding: '20px', maxWidth: '900px', margin: '0 auto' }}>
         {/* Patient Selection */}
@@ -323,12 +323,12 @@ export default function TriagePage() {
               Please select a patient above to begin triage recording.
             </div>
           ) : (
-            <AudioRecorder
-              onRecordingStart={handleRecordingStart}
-              onRecordingStop={handleRecordingStop}
-              isRecording={isRecording}
-              disabled={isLoading}
-            />
+          <AudioRecorder
+            onRecordingStart={handleRecordingStart}
+            onRecordingStop={handleRecordingStop}
+            isRecording={isRecording}
+            disabled={isLoading}
+          />
           )}
         </section>
 

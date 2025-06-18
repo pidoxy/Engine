@@ -20,10 +20,12 @@ export default function PatientsPage() {
     try {
       setLoading(true);
       const response = await patientService.getOrganizationPatients();
-      setPatients(response.data || response || []);
+      const data = response.data || response || [];
+      setPatients(Array.isArray(data) ? data : []);
     } catch (err) {
       setError('Failed to fetch patients');
       console.error('Error fetching patients:', err);
+      setPatients([]);
     } finally {
       setLoading(false);
     }
@@ -35,6 +37,24 @@ export default function PatientsPage() {
 
   const handleViewPatient = (patientId) => {
     router.push(`/patients/${patientId}`);
+  };
+
+  const handleEditPatient = (patientId) => {
+    router.push(`/patients/${patientId}/edit`);
+  };
+
+  const handleDeletePatient = async (patientId) => {
+    if (!window.confirm('Are you sure you want to delete this patient?')) return;
+    try {
+      await patientService.deletePatient(patientId);
+      setPatients((prev) => prev.filter((p) => p.id !== patientId && p._id !== patientId));
+    } catch (err) {
+      alert('Failed to delete patient.');
+    }
+  };
+
+  const handleViewConsultations = (patientId) => {
+    router.push(`/patients/${patientId}/consultations`);
   };
 
   const calculateAge = (dateOfBirth) => {
@@ -260,7 +280,7 @@ export default function PatientsPage() {
                       <td style={{ padding: '1rem' }}>
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                           <button
-                            onClick={() => handleViewPatient(patient.id)}
+                            onClick={() => handleViewPatient(patient.id || patient._id)}
                             style={{
                               padding: '0.25rem 0.75rem',
                               background: '#007bff',
@@ -273,7 +293,48 @@ export default function PatientsPage() {
                           >
                             View
                           </button>
-                          
+                          <button
+                            onClick={() => handleEditPatient(patient.id || patient._id)}
+                            style={{
+                              padding: '0.25rem 0.75rem',
+                              background: '#ffc107',
+                              color: '#333',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '0.875rem'
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeletePatient(patient.id || patient._id)}
+                            style={{
+                              padding: '0.25rem 0.75rem',
+                              background: '#dc3545',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '0.875rem'
+                            }}
+                          >
+                            Delete
+                          </button>
+                          <button
+                            onClick={() => handleViewConsultations(patient.id || patient._id)}
+                            style={{
+                              padding: '0.25rem 0.75rem',
+                              background: '#6f42c1',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '0.875rem'
+                            }}
+                          >
+                            Consultations
+                          </button>
                           {user?.role !== 'admin' && (
                             <button
                               onClick={() => router.push(

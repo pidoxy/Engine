@@ -127,7 +127,11 @@ export default function CreatePatientPage() {
 
     try {
       // Create patient in main backend first
-      const mainBackendResponse = await patientService.createPatient(formData);
+      const mainBackendResponse = await patientService.createPatient({
+        ...formData,
+        organization: user?.organization,
+      });
+      console.log('Create Patient API response:', mainBackendResponse);
       const createdPatient = mainBackendResponse.data || mainBackendResponse;
       
       // If there are medical files or additional medical data, also create in AI backend
