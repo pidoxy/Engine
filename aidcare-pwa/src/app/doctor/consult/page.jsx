@@ -11,18 +11,19 @@ import SummaryDisplay from '../../components/SummaryDisplay';
 import DocumentUploader from '@/app/components/DocumentUploader';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import { useAuth } from '../../context/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function ClinicalSupportPage() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [apiResult, setApiResult] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [manualContext, setManualContext] = useState(''); 
-  const [currentPatientUuid, setCurrentPatientUuid] = useState("test-patient-123"); 
+  const [currentPatientUuid, setCurrentPatientUuid] = useState("");
   const [patientDocuments, setPatientDocuments] = useState([]); 
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
 
@@ -62,6 +63,14 @@ export default function ClinicalSupportPage() {
       setPatientDocuments([]); // Clear if UUID is removed
     }
   }, [currentPatientUuid, fetchPatientDocuments]);
+
+  // Set currentPatientUuid from URL query param if present
+  useEffect(() => {
+    const patientIdFromQuery = searchParams.get('patient');
+    if (patientIdFromQuery && patientIdFromQuery !== currentPatientUuid) {
+      setCurrentPatientUuid(patientIdFromQuery);
+    }
+  }, [searchParams, currentPatientUuid]);
 
   const handleRecordingStart = useCallback(() => {
     setIsRecording(true);
