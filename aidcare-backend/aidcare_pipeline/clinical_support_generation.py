@@ -9,7 +9,9 @@ GOOGLE_API_KEY_CLINICAL_SUPPORT = os.environ.get("GOOGLE_API_KEY")
 
 def generate_clinical_support_details(
     extracted_clinical_info: dict, 
-    retrieved_knowledge_entries: list
+    retrieved_knowledge_entries: list,
+    manual_context_supplement: str = "",
+    patient_historical_document_texts: list = None
 ) -> dict:
     """
     Generates structured clinical support details (potential conditions, tests, meds, alerts)
@@ -38,6 +40,18 @@ def generate_clinical_support_details(
     if extracted_clinical_info.get('allergies_mentioned'):
         patient_context_str += f"- Known Allergies: {', '.join(extracted_clinical_info.get('allergies_mentioned', []))}\n"
     # Add other fields as needed (family history, social, meds, exam findings)
+    
+    # --- Add manual context from doctor ---
+    if manual_context_supplement and manual_context_supplement.strip():
+        patient_context_str += f"- Additional Context from Doctor: {manual_context_supplement.strip()}\n"
+    
+    # --- Add patient historical documents context ---
+    if patient_historical_document_texts:
+        patient_context_str += "\nPatient's Historical Medical Documents:\n"
+        for i, doc_text in enumerate(patient_historical_document_texts):
+            patient_context_str += f"\n{doc_text}\n"
+    else:
+        patient_context_str += "\nNo historical medical documents available for this patient.\n"
 
     # --- Prepare context from retrieved_knowledge_entries (textbooks, guidelines) ---
     knowledge_context_str = "\nRetrieved Relevant Knowledge Base Information:\n"
@@ -65,10 +79,12 @@ def generate_clinical_support_details(
 
     system_instruction = (
         "You are an AI Clinical Decision Support assistant for medical professionals. "
-        "Your role is to synthesize patient information and relevant medical knowledge (from provided textbook snippets and guidelines) "
+        "Your role is to synthesize patient information (current presentation, medical history, allergies, medications, uploaded documents) "
+        "and relevant medical knowledge (from provided textbook snippets and guidelines) "
         "to suggest potential conditions, investigations, medication considerations, and highlight alerts. "
-        "You do NOT make definitive diagnoses. Prioritize information directly present in the 'Retrieved Relevant Knowledge Base Information'. "
-        "If patient allergies are mentioned, consider them for medication suggestions. "
+        "You do NOT make definitive diagnoses. Use ALL available patient context including historical documents to inform your recommendations. "
+        "CRITICAL: Always consider patient allergies, current medications, and past medical history when making suggestions. "
+        "If patient historical documents contain relevant information (lab results, previous diagnoses, etc.), incorporate this into your analysis. "
         "The output must be a structured JSON object."
     )
     prompt = f"""

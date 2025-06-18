@@ -1,0 +1,204 @@
+{
+	"info": {
+		"_postman_id": "b52565dd-0d5e-4085-ae51-62b9e464ef1d",
+		"name": "Organizations",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "45324165",
+		"_collection_link": "https://aidcare.postman.co/workspace/My-Workspace~60a15eab-ba2c-4dd6-823e-e2ceaf2d4612/collection/45281007-b52565dd-0d5e-4085-ae51-62b9e464ef1d?action=share&source=collection_link&creator=45324165"
+	},
+	"item": [
+		{
+			"name": "Get All Organizations",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/v1/organization",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"organization"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Organization",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"name\": \"Acme Weather Solutions\",\n  \"description\": \"Leading provider of weather monitoring solutions\",\n  \"features\": [\n    {\n      \"featureId\": \"64a7b3d1c5e7f8a9b0c1d2e3\",\n      \"enabled\": true\n    },\n    {\n      \"featureId\": \"64a7b3d1c5e7f8a9b0c1d2e4\",\n      \"enabled\": false\n    }\n  ]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/organization",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"organization"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Organization Root User",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\": \"Ajala hospital\",\n    \"description\": \"Optional description\",\n    \"firstName\": \"Ridwan\",\n    \"lastName\": \"Adeyemo\",\n    \"email\": \"hellommmj@rhedwan.com\",\n    \"password\": \"ukqn6!!!\",\n    \"passwordConfirm\": \"ukqn6!!!\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/organization/with-root-user",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"organization",
+						"with-root-user"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Organization by ID",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/v1/organization/68335aa8a8853b3ecbd113fb",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"organization",
+						"68335aa8a8853b3ecbd113fb"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Organization",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/v1/organization/67ab7279214183ebaee3cf1f",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"organization",
+						"67ab7279214183ebaee3cf1f"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete Organization",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": []
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/organization/67ab72d8214183ebaee3cf21",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"organization",
+						"67ab72d8214183ebaee3cf21"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

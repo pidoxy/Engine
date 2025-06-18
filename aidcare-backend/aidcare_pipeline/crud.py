@@ -6,12 +6,40 @@ from datetime import datetime # For timestamps
 from . import db_models as models # Using 'models' alias for clarity
 
 # --- Patient CRUD ---
-def create_patient(db: Session, patient_uuid: str, full_name: str = None, dob: datetime = None, gender: str = None) -> models.Patient:
+def create_patient(
+    db: Session, 
+    patient_uuid: str, 
+    first_name: str = None,
+    last_name: str = None,
+    full_name: str = None, 
+    dob: datetime = None, 
+    gender: str = None,
+    phone_number: str = None,
+    address: str = None,
+    emergency_contact: str = None,
+    emergency_contact_phone: str = None,
+    medical_history: str = None,
+    allergies: str = None,
+    current_medications: str = None
+) -> models.Patient:
+    # Auto-generate full_name if not provided but first/last names are
+    if not full_name and (first_name or last_name):
+        full_name = f"{first_name or ''} {last_name or ''}".strip()
+    
     db_patient = models.Patient(
         patient_uuid=patient_uuid, 
+        first_name=first_name,
+        last_name=last_name,
         full_name=full_name, 
         date_of_birth=dob, 
-        gender=gender
+        gender=gender,
+        phone_number=phone_number,
+        address=address,
+        emergency_contact=emergency_contact,
+        emergency_contact_phone=emergency_contact_phone,
+        medical_history=medical_history,
+        allergies=allergies,
+        current_medications=current_medications
         # created_at and updated_at will use server_default
     )
     db.add(db_patient)

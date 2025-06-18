@@ -9,9 +9,17 @@ class Patient(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     patient_uuid = Column(String(36), unique=True, index=True, nullable=False) # UUIDs are 36 chars
     full_name = Column(String(255), index=True, nullable=True)
+    first_name = Column(String(100), nullable=True)
+    last_name = Column(String(100), nullable=True)
     date_of_birth = Column(DateTime, nullable=True)
     gender = Column(String(50), nullable=True)
-    # Add other fields like contact_info (JSON or separate table), address, etc.
+    phone_number = Column(String(20), nullable=True)
+    address = Column(Text, nullable=True)
+    emergency_contact = Column(String(255), nullable=True)
+    emergency_contact_phone = Column(String(20), nullable=True)
+    medical_history = Column(Text, nullable=True)
+    allergies = Column(Text, nullable=True)
+    current_medications = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

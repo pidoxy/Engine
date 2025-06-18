@@ -1,0 +1,177 @@
+{
+	"info": {
+		"_postman_id": "a37049d9-f895-4255-a478-713d3830e22a",
+		"name": "Patient",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "45324165",
+		"_collection_link": "https://aidcare.postman.co/workspace/My-Workspace~60a15eab-ba2c-4dd6-823e-e2ceaf2d4612/collection/45281007-a37049d9-f895-4255-a478-713d3830e22a?action=share&source=collection_link&creator=45324165"
+	},
+	"item": [
+		{
+			"name": "Create a Patient",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"firstName\": \"Ridwan\",\n    \"lastName\": \"Adeyemo\",\n    \"dateOfBirth\": \"1990-05-15\",\n    \"gender\": \"male\",\n    \"organization\": \"683abdf7afd3eef0a3062a8f\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/patients",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"patients"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Patient by ID",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/patients/683e1e9c8be590094cb467bb",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"patients",
+						"683e1e9c8be590094cb467bb"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Patient Single Consultation",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/patients/68506e11029889c478f0cbdb/consultation/68510e995a7bde541ac15e01",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"patients",
+						"68506e11029889c478f0cbdb",
+						"consultation",
+						"68510e995a7bde541ac15e01"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "All active patients in organization",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/patients/organization",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"patients",
+						"organization"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

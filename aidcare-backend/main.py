@@ -16,15 +16,33 @@ from pydantic import BaseModel, Field
 
 class PatientCreate(BaseModel):
     patient_uuid: str
-    full_name: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    full_name: str | None = None  # Keep for backward compatibility
     date_of_birth_str: str | None = Field(default=None, description="YYYY-MM-DD format")
     gender: str | None = None
+    phone_number: str | None = None
+    address: str | None = None
+    emergency_contact: str | None = None
+    emergency_contact_phone: str | None = None
+    medical_history: str | None = None
+    allergies: str | None = None
+    current_medications: str | None = None
 
 class PatientResponse(BaseModel):
     patient_uuid: str
+    first_name: str | None
+    last_name: str | None
     full_name: str | None
     date_of_birth: datetime | None
     gender: str | None
+    phone_number: str | None
+    address: str | None
+    emergency_contact: str | None
+    emergency_contact_phone: str | None
+    medical_history: str | None
+    allergies: str | None
+    current_medications: str | None
     created_at: datetime
 
     class Config:
@@ -171,9 +189,18 @@ def create_new_patient_endpoint(patient_data: PatientCreate, db: Session = Depen
     db_patient = crud.create_patient(
         db=db, 
         patient_uuid=patient_data.patient_uuid,
+        first_name=patient_data.first_name,
+        last_name=patient_data.last_name,
         full_name=patient_data.full_name, 
         dob=dob_dt, 
-        gender=patient_data.gender
+        gender=patient_data.gender,
+        phone_number=patient_data.phone_number,
+        address=patient_data.address,
+        emergency_contact=patient_data.emergency_contact,
+        emergency_contact_phone=patient_data.emergency_contact_phone,
+        medical_history=patient_data.medical_history,
+        allergies=patient_data.allergies,
+        current_medications=patient_data.current_medications
     )
     if not db_patient: raise HTTPException(status_code=500, detail="Failed to create patient.")
     return db_patient
@@ -187,6 +214,112 @@ def read_patient_by_uuid_endpoint(patient_uuid: str, db: Session = Depends(get_d
 @app.get("/patients/", response_model=List[PatientResponse])
 def read_all_patients_endpoint(skip: int = 0, limit: int = 20, db: Session = Depends(get_db)):
     return crud.get_patients(db, skip=skip, limit=limit)
+
+# --- Enhanced Patient Creation with Documents ---
+@app.post("/patients/create_with_documents/", response_model=PatientResponse, status_code=201)
+async def create_patient_with_documents_endpoint(
+    background_tasks: BackgroundTasks,
+    patient_uuid: str = Form(...),
+    first_name: str = Form(None),
+    last_name: str = Form(None),
+    date_of_birth_str: str = Form(None),
+    gender: str = Form(None),
+    phone_number: str = Form(None),
+    address: str = Form(None),
+    emergency_contact: str = Form(None),
+    emergency_contact_phone: str = Form(None),
+    medical_history: str = Form(None),
+    allergies: str = Form(None),
+    current_medications: str = Form(None),
+    medical_documents: List[UploadFile] = File(default=[]),
+    db: Session = Depends(get_db)
+):
+    """
+    Create a patient with optional medical document uploads.
+    Documents are processed in the background using OCR.
+    """
+    # Check if patient with this UUID already exists
+    existing_patient = crud.get_patient_by_uuid(db, patient_uuid=patient_uuid)
+    if existing_patient:
+        raise HTTPException(status_code=400, detail=f"Patient with UUID {patient_uuid} already exists")
+    
+    # Parse date of birth
+    dob_dt = None
+    if date_of_birth_str:
+        try: 
+            dob_dt = datetime.strptime(date_of_birth_str, "%Y-%m-%d")
+        except ValueError: 
+            raise HTTPException(status_code=400, detail="Invalid date_of_birth_str. Use YYYY-MM-DD.")
+    
+    # Create the patient first
+    db_patient = crud.create_patient(
+        db=db, 
+        patient_uuid=patient_uuid,
+        first_name=first_name,
+        last_name=last_name,
+        dob=dob_dt, 
+        gender=gender,
+        phone_number=phone_number,
+        address=address,
+        emergency_contact=emergency_contact,
+        emergency_contact_phone=emergency_contact_phone,
+        medical_history=medical_history,
+        allergies=allergies,
+        current_medications=current_medications
+    )
+    
+    if not db_patient: 
+        raise HTTPException(status_code=500, detail="Failed to create patient.")
+    
+    # Process medical documents if provided
+    if medical_documents and len(medical_documents) > 0:
+        # Filter out empty files
+        valid_documents = [doc for doc in medical_documents if doc.filename and doc.size > 0]
+        
+        for document in valid_documents:
+            # Validate file type
+            allowed_types = ["application/pdf", "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"]
+            if document.content_type not in allowed_types:
+                print(f"WARNING: Skipping unsupported file type: {document.content_type} for file {document.filename}")
+                continue
+            
+            # Generate unique document UUID and storage path
+            document_uuid = str(uuid.uuid4())
+            file_extension = document.filename.split('.')[-1] if '.' in document.filename else ''
+            storage_filename = f"{patient_uuid}_{document_uuid}.{file_extension}"
+            storage_path = os.path.join(UPLOADED_PATIENT_DOCS_DIR, storage_filename)
+            
+            try:
+                # Save the file
+                with open(storage_path, "wb") as buffer:
+                    content = await document.read()
+                    buffer.write(content)
+                
+                # Create document record in database
+                db_document = crud.create_patient_document(
+                    db=db,
+                    patient_id=db_patient.id,
+                    document_uuid=document_uuid,
+                    original_filename=document.filename,
+                    storage_path=storage_path,
+                    file_type=document.content_type
+                )
+                
+                # Schedule background processing
+                background_tasks.add_task(
+                    process_uploaded_document_task, 
+                    document_uuid, 
+                    storage_path
+                )
+                
+                print(f"Scheduled document processing for: {document.filename} (UUID: {document_uuid})")
+                
+            except Exception as e:
+                print(f"ERROR processing document {document.filename}: {e}")
+                # Continue with other documents even if one fails
+                continue
+    
+    return db_patient
 
 # --- Transcription Only Endpoint ---
 @app.post("/transcribe/audio/")
@@ -227,11 +360,52 @@ async def process_text_for_triage_endpoint( # Renamed
         symptoms = extract_symptoms_with_gemini(transcript)
         if isinstance(symptoms, dict) and "error" in symptoms: raise HTTPException(status_code=500, detail=f"Symptom extraction error: {symptoms.get('error')}")
         retrieved_docs = retriever.retrieve_relevant_guidelines(symptoms, top_k=3)
-        recommendation = generate_triage_recommendation(symptoms, retrieved_docs)
+        
+        # Fetch patient context for triage
+        patient_context = {
+            'first_name': db_patient.first_name,
+            'last_name': db_patient.last_name,
+            'date_of_birth': db_patient.date_of_birth,
+            'gender': db_patient.gender,
+            'medical_history': db_patient.medical_history,
+            'allergies': db_patient.allergies,
+            'current_medications': db_patient.current_medications
+        }
+        
+        # Fetch historical document texts for this patient
+        patient_docs_from_db = crud.get_patient_documents(db, patient_id=db_patient.id, limit=5)
+        patient_historical_document_texts = []
+        if patient_docs_from_db:
+            for doc in patient_docs_from_db:
+                if doc.processing_status in ["completed", "completed_empty_text", "completed_with_errors"] and doc.extracted_text:
+                    doc_header = f"--- Patient Document: '{doc.original_filename}' (Uploaded: {doc.upload_timestamp.strftime('%Y-%m-%d') if doc.upload_timestamp else 'N/A'}) ---"
+                    snippet = doc.extracted_text[:800] + ("..." if len(doc.extracted_text) > 800 else "")
+                    patient_historical_document_texts.append(f"{doc_header}\n{snippet}")
+        
+        recommendation = generate_triage_recommendation(
+            symptoms, 
+            retrieved_docs, 
+            patient_context=patient_context,
+            manual_context="",
+            patient_historical_document_texts=patient_historical_document_texts
+        )
         if not recommendation or (isinstance(recommendation, dict) and "error" in recommendation): raise HTTPException(status_code=500, detail=f"Recommendation error: {recommendation.get('error') if isinstance(recommendation, dict) else 'Unknown'}")
         
         crud.update_consultation_session_results(db=db, session_uuid=db_session.session_uuid, extracted_info={"symptoms": symptoms}, retrieved_docs_summary=[{"source": d.get("source_document_name"), "code": d.get("subsection_code"), "case": d.get("case"), "score": d.get("retrieval_score (distance)")} for d in retrieved_docs], final_recommendation=recommendation)
-        return {"session_uuid": db_session.session_uuid, "mode": "chw_triage_text", "input_transcript": transcript, "extracted_symptoms": symptoms, "retrieved_guidelines_summary": [{"source": d.get("source_document_name"), "code": d.get("subsection_code"), "case": d.get("case"), "score": d.get("retrieval_score (distance)")} for d in retrieved_docs], "triage_recommendation": recommendation}
+        return {
+            "session_uuid": db_session.session_uuid, 
+            "mode": "chw_triage_text", 
+            "input_transcript": transcript, 
+            "extracted_symptoms": symptoms, 
+            "retrieved_guidelines_summary": [{"source": d.get("source_document_name"), "code": d.get("subsection_code"), "case": d.get("case"), "score": d.get("retrieval_score (distance)")} for d in retrieved_docs], 
+            "triage_recommendation": recommendation,
+            "patient_context_used": {
+                "has_medical_history": bool(db_patient.medical_history and db_patient.medical_history.strip()),
+                "has_allergies": bool(db_patient.allergies and db_patient.allergies.strip()),
+                "has_current_medications": bool(db_patient.current_medications and db_patient.current_medications.strip()),
+                "historical_documents_count": len(patient_historical_document_texts)
+            }
+        }
     except Exception as e: import traceback; traceback.print_exc(); raise HTTPException(status_code=500, detail=str(e))
              
 @app.post("/triage/process_audio/{patient_uuid}")
@@ -258,15 +432,53 @@ async def process_audio_for_triage_endpoint(
         symptoms = extract_symptoms_with_gemini(transcript)
         if isinstance(symptoms, dict) and "error" in symptoms: raise HTTPException(status_code=500, detail=f"CHW Mode: Symptom extraction error: {symptoms.get('error')}")
         retrieved_docs = retriever.retrieve_relevant_guidelines(symptoms, top_k=3)
-        recommendation = generate_triage_recommendation(symptoms, retrieved_docs)
+        
+        # Fetch patient context for triage
+        patient_context = {
+            'first_name': db_patient.first_name,
+            'last_name': db_patient.last_name,
+            'date_of_birth': db_patient.date_of_birth,
+            'gender': db_patient.gender,
+            'medical_history': db_patient.medical_history,
+            'allergies': db_patient.allergies,
+            'current_medications': db_patient.current_medications
+        }
+        
+        # Fetch historical document texts for this patient
+        patient_docs_from_db = crud.get_patient_documents(db, patient_id=db_patient.id, limit=5)
+        patient_historical_document_texts = []
+        if patient_docs_from_db:
+            for doc in patient_docs_from_db:
+                if doc.processing_status in ["completed", "completed_empty_text", "completed_with_errors"] and doc.extracted_text:
+                    doc_header = f"--- Patient Document: '{doc.original_filename}' (Uploaded: {doc.upload_timestamp.strftime('%Y-%m-%d') if doc.upload_timestamp else 'N/A'}) ---"
+                    snippet = doc.extracted_text[:800] + ("..." if len(doc.extracted_text) > 800 else "")
+                    patient_historical_document_texts.append(f"{doc_header}\n{snippet}")
+        
+        recommendation = generate_triage_recommendation(
+            symptoms, 
+            retrieved_docs, 
+            patient_context=patient_context,
+            manual_context=manual_context,
+            patient_historical_document_texts=patient_historical_document_texts
+        )
         if not recommendation or (isinstance(recommendation, dict) and "error" in recommendation): raise HTTPException(status_code=500, detail=f"CHW Mode: Recommendation error: {recommendation.get('error') if isinstance(recommendation, dict) else 'Unknown'}")
         crud.update_consultation_session_results(
             db=db, session_uuid=db_session.session_uuid, extracted_info={"symptoms":symptoms}, retrieved_docs_summary=[{"source": d.get("source_document_name"), "code": d.get("subsection_code"), "case": d.get("case"), "score": d.get("retrieval_score (distance)")} for d in retrieved_docs], final_recommendation=recommendation
         )
         return {
-            "session_uuid": db_session.session_uuid, "mode": "chw_triage_audio", "transcript": transcript, "manual_context_provided": manual_context, "extracted_symptoms": symptoms,
+            "session_uuid": db_session.session_uuid, 
+            "mode": "chw_triage_audio", 
+            "transcript": transcript, 
+            "manual_context_provided": manual_context, 
+            "extracted_symptoms": symptoms,
             "retrieved_guidelines_summary": [{"source": d.get("source_document_name"), "code": d.get("subsection_code"), "case": d.get("case"), "score": d.get("retrieval_score (distance)")} for d in retrieved_docs],
-            "triage_recommendation": recommendation
+            "triage_recommendation": recommendation,
+            "patient_context_used": {
+                "has_medical_history": bool(db_patient.medical_history and db_patient.medical_history.strip()),
+                "has_allergies": bool(db_patient.allergies and db_patient.allergies.strip()),
+                "has_current_medications": bool(db_patient.current_medications and db_patient.current_medications.strip()),
+                "historical_documents_count": len(patient_historical_document_texts)
+            }
         }
     except Exception as e: import traceback; traceback.print_exc(); raise HTTPException(status_code=500, detail=str(e))
     finally:
