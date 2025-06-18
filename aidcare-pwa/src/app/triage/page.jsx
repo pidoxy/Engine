@@ -147,7 +147,7 @@ export default function TriagePage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <span>Welcome, {user.first_name || user.username}</span>
           <button 
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push('/dashboard/chw')}
             style={{
               padding: '0.5rem 1rem',
               background: '#007bff',

@@ -198,7 +198,7 @@ export default function ClinicalSupportPage() {
             {user?.role || 'User'}
           </span>
           <button 
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push(user?.role === 'admin' ? '/dashboard/admin' : user?.role === 'consultant' ? '/dashboard/doctor' : '/dashboard/chw')}
             style={{
               padding: '0.5rem 1rem',
               background: '#6c757d',

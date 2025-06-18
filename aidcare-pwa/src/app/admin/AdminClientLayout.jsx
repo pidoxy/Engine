@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
+import Image from 'next/image';
 
 function AdminHeader() {
   const { user, logout } = useAuth();
@@ -9,9 +10,18 @@ function AdminHeader() {
   return (
     <div className="bg-white shadow-sm border-b border-gray-200">
       <div className="flex justify-between items-center px-8 py-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-          <p className="text-sm text-gray-600">Welcome back, {user?.name || 'Admin'}</p>
+        <div className="flex items-center gap-4">
+          <Image
+            src="/icons/icon-96x96.png"
+            alt="AidCare Logo"
+            width={40}
+            height={40}
+            className="rounded-lg"
+          />
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+            <p className="text-sm text-gray-600">Welcome back, {user?.name || 'Admin'}</p>
+          </div>
         </div>
         <button
           onClick={logout}
@@ -28,7 +38,7 @@ function AdminNav() {
   const pathname = usePathname();
 
   const navItems = [
-    { href: '/admin', label: 'Overview' },
+    { href: '/dashboard/admin', label: 'Overview' },
     { href: '/admin/invite', label: 'Invite Users' },
     { href: '/patients', label: 'Patients' },
     { href: '/admin/users', label: 'Users' },

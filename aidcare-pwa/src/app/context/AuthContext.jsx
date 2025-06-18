@@ -24,6 +24,7 @@ export function AuthProvider({ children }) {
       let newDashboardUrl = '/login';
       switch (userData.role) {
         case 'admin':
+        case 'organization':
           newDashboardUrl = '/dashboard/admin';
           break;
         case 'consultant':
@@ -92,6 +93,7 @@ export function AuthProvider({ children }) {
       let newDashboardUrl = '/login';
       switch (loggedInUser.role) {
         case 'admin':
+        case 'organization':
           newDashboardUrl = '/dashboard/admin';
           break;
         case 'consultant':

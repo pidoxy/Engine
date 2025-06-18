@@ -122,7 +122,7 @@ export default function PatientsPage() {
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           <span style={{ 
             padding: '0.25rem 0.75rem',
-            background: user?.role === 'admin' ? '#dc3545' : user?.role === 'consultant' ? '#007bff' : '#28a745',
+            background: (user?.role === 'admin' || user?.role === 'organization') ? '#dc3545' : user?.role === 'consultant' ? '#007bff' : '#28a745',
             color: 'white',
             borderRadius: '12px',
             fontSize: '0.8rem',
@@ -427,7 +427,7 @@ export default function PatientsPage() {
             <h3 style={{ margin: '0 0 1rem 0' }}>Quick Actions</h3>
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               <button
-                onClick={() => router.push('/dashboard')}
+                onClick={() => router.push((user?.role === 'admin' || user?.role === 'organization') ? '/dashboard/admin' : user?.role === 'consultant' ? '/dashboard/doctor' : '/dashboard/chw')}
                 style={{
                   padding: '0.75rem 1.5rem',
                   background: '#6c757d',
@@ -441,7 +441,7 @@ export default function PatientsPage() {
                 ← Back to Dashboard
               </button>
               
-              {user?.role !== 'admin' && (
+              {user?.role !== 'admin' && user?.role !== 'organization' && (
                 <button
                   onClick={() => router.push(user?.role === 'chw' ? '/triage' : '/doctor/consult')}
                   style={{
