@@ -5,8 +5,10 @@ import os
 import time
 
 # Use a specific model name for this task if desired, or the general one
-GEMINI_MODEL_CLINICAL_EXTRACT = os.getenv("GEMINI_MODEL_CLINICAL_EXTRACT", 'gemini-1.5-flash-latest')
+GEMINI_MODEL_CLINICAL_EXTRACT = os.getenv("GEMINI_MODEL_CLINICAL_EXTRACT", "gemini-3-flash-preview")
 GOOGLE_API_KEY_CLINICAL = os.environ.get("GOOGLE_API_KEY")
+
+_MODERN_GEMINI_PREFIXES = ("gemini-1.5", "gemini-2", "gemini-3")
 
 def extract_detailed_clinical_information(transcript_text: str) -> dict:
     """
@@ -61,7 +63,7 @@ def extract_detailed_clinical_information(transcript_text: str) -> dict:
     )
 
     full_prompt_to_send = prompt
-    if GEMINI_MODEL_CLINICAL_EXTRACT.startswith('gemini-1.5'):
+    if GEMINI_MODEL_CLINICAL_EXTRACT.startswith(_MODERN_GEMINI_PREFIXES):
         model_instance = genai.GenerativeModel(
             GEMINI_MODEL_CLINICAL_EXTRACT,
             system_instruction=system_instruction,

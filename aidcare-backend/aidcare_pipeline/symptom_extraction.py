@@ -5,10 +5,12 @@ import os
 import time
 from dotenv import load_dotenv
 
-load_dotenv() 
+load_dotenv()
 
-GEMINI_MODEL_NAME_EXTRACTION = os.getenv("GEMINI_MODEL_EXTRACTION", 'gemini-1.5-flash-latest')
+GEMINI_MODEL_NAME_EXTRACTION = os.getenv("GEMINI_MODEL_EXTRACTION", "gemini-3-flash-preview")
 GOOGLE_API_KEY_SYMPTOMS = os.environ.get("GOOGLE_API_KEY") # Expect API key from environment
+
+_MODERN_GEMINI_PREFIXES = ("gemini-1.5", "gemini-2", "gemini-3")
 
 def extract_symptoms_with_gemini(transcript_text: str) -> list:
     if not GOOGLE_API_KEY_SYMPTOMS:
@@ -36,9 +38,9 @@ def extract_symptoms_with_gemini(transcript_text: str) -> list:
 
     # Simplified for brevity, ensure your robust parsing is here
     generation_config = genai.types.GenerationConfig(temperature=0.1, max_output_tokens=256)
-    full_prompt = system_instruction + "\n\n" + prompt if not GEMINI_MODEL_NAME_EXTRACTION.startswith('gemini-1.5') else prompt
+    full_prompt = system_instruction + "\n\n" + prompt if not GEMINI_MODEL_NAME_EXTRACTION.startswith(_MODERN_GEMINI_PREFIXES) else prompt
     
-    if GEMINI_MODEL_NAME_EXTRACTION.startswith('gemini-1.5'):
+    if GEMINI_MODEL_NAME_EXTRACTION.startswith(_MODERN_GEMINI_PREFIXES):
         model_instance = genai.GenerativeModel(
             GEMINI_MODEL_NAME_EXTRACTION,
             system_instruction=system_instruction, # Pass system instruction here

@@ -4,8 +4,10 @@ import json
 import os
 import time
 
-GEMINI_MODEL_NAME_RECOMMEND = os.getenv("GEMINI_MODEL_RECOMMEND", 'gemini-1.5-flash-latest')
+GEMINI_MODEL_NAME_RECOMMEND = os.getenv("GEMINI_MODEL_RECOMMEND", "gemini-3-flash-preview")
 GOOGLE_API_KEY_RECOMMEND = os.environ.get("GOOGLE_API_KEY")
+
+_MODERN_GEMINI_PREFIXES = ("gemini-1.5", "gemini-2", "gemini-3")
 
 def generate_triage_recommendation(symptoms_list: list, retrieved_guideline_entries: list) -> dict:
     if not GOOGLE_API_KEY_RECOMMEND:
@@ -89,7 +91,7 @@ def generate_triage_recommendation(symptoms_list: list, retrieved_guideline_entr
     )
     
     # Construct model instance based on whether it's Gemini 1.5 or older (for system_instruction handling)
-    if GEMINI_MODEL_NAME_RECOMMEND.startswith('gemini-1.5'):
+    if GEMINI_MODEL_NAME_RECOMMEND.startswith(_MODERN_GEMINI_PREFIXES):
         # For Gemini 1.5, set response_mime_type if you want the model to strictly output JSON
         # generation_config.response_mime_type="application/json" # Uncomment if using
         model_instance = genai.GenerativeModel(
@@ -98,7 +100,7 @@ def generate_triage_recommendation(symptoms_list: list, retrieved_guideline_entr
             generation_config=generation_config
         )
         user_prompt_for_1_5 = prompt # System instruction is handled by the model_instance
-    else: # For gemini-1.0-pro
+    else: # For older models like gemini-1.0-pro
         model_instance = model
         user_prompt_for_1_5 = system_instruction + "\n\n" + prompt # Prepend system instruction
 

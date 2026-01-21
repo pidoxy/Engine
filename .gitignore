@@ -3,3 +3,13 @@
 temp_audio/
 
 *.env
+
+# Python bytecode / caches
+__pycache__/
+*.py[cod]
+
+# Local patient uploads / storage (generated at runtime)
+aidcare-backend/patient_documents_storage/
+
+# Local deploy/venv artifacts
+aidcare-backend/.venv-deploy-critical/

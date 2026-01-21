@@ -4,10 +4,12 @@ import json
 import os
 import time
 
-GEMINI_MODEL_CLINICAL_SUPPORT = os.getenv("GEMINI_MODEL_CLINICAL_SUPPORT", 'gemini-1.5-flash-latest')
+GEMINI_MODEL_CLINICAL_SUPPORT = os.getenv("GEMINI_MODEL_CLINICAL_SUPPORT", "gemini-3-flash-preview")
 # GOOGLE_API_KEY is expected to be loaded by main.py and genai configured there,
 # but functions should ideally be self-contained or clearly state assumptions.
 # For this setup, main.py will handle genai.configure().
+
+_MODERN_GEMINI_PREFIXES = ("gemini-1.5", "gemini-2", "gemini-3")
 
 def generate_clinical_support_details(
     extracted_clinical_info: dict, 
@@ -131,7 +133,7 @@ def generate_clinical_support_details(
     full_prompt_to_send = prompt # User prompt for Gemini 1.5 with system instruction in model
     model_to_use = model # Default for older models
 
-    if GEMINI_MODEL_CLINICAL_SUPPORT.startswith('gemini-1.5'):
+    if GEMINI_MODEL_CLINICAL_SUPPORT.startswith(_MODERN_GEMINI_PREFIXES):
         # For Gemini 1.5, enabling this helps a lot.
         # Make sure your Google AI Python SDK is up-to-date for this feature.
         # If it causes errors, comment it out and rely on prompt structure.

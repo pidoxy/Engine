@@ -9,7 +9,7 @@ import time
 #     print("Error: GOOGLE_API_KEY not set.")
 #     exit()
 
-GEMINI_MODEL_NAME = 'gemini-1.5-flash-latest' # Or 'gemini-1.0-pro-latest'
+GEMINI_MODEL_NAME = "gemini-3-flash-preview"  # Free-tier Gemini 3 model (preview)
 
 # --- Recommendation Generation Function ---
 def generate_triage_recommendation(symptoms_list, retrieved_guideline_entries, api_key_to_use):
