@@ -16,6 +16,7 @@ psycopg2-binary==2.9.11
 # ML/AI - Whisper & Embeddings
 torch==2.7.0
 torchaudio==2.7.0
+torchvision==0.22.0
 transformers==4.51.3
 sentence-transformers==4.1.0
 accelerate==1.7.0
