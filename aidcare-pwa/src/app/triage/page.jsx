@@ -4,11 +4,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Head from 'next/head'; // Still useful for setting page-specific titles/meta if needed
 import AudioRecorder from '../components/AudioRecorder';
-import RecommendationDisplay from '../components/RecommendationDisplay';
+import TriageResults from '../components/triage/TriageResults';
+import TriageForm from '../components/triage/TriageForm';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
 import Link from 'next/link';
-import { FaStethoscope, FaMicrophone, FaArrowLeft, FaHeart } from 'react-icons/fa';
+import { FaStethoscope, FaMicrophone, FaArrowLeft, FaHeart, FaKeyboard } from 'react-icons/fa';
 import { MdLocalHospital, MdHealthAndSafety } from 'react-icons/md';
 // import styles from './TriagePage.module.css'; // Create if you want specific styles
 
@@ -22,7 +23,8 @@ export default function TriagePage() {
   const [triageResult, setTriageResult] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [loadingComplete, setLoadingComplete] = useState(false);
-  
+  const [inputMode, setInputMode] = useState('voice'); // 'voice' or 'text'
+
   // Use ref to track if we've already processed this blob
   const processedBlobRef = useRef(null);
 
@@ -53,13 +55,13 @@ export default function TriagePage() {
       setErrorMessage('No audio recorded to process.');
       return;
     }
-    
+
     // Prevent processing the same blob multiple times
     if (processedBlobRef.current === blobToProcess) {
       console.log("Blob already processed, skipping...");
       return;
     }
-    
+
     console.log("Parent: Processing audio blob:", blobToProcess);
     processedBlobRef.current = blobToProcess; // Mark this blob as being processed
     setIsLoading(true);
@@ -80,19 +82,19 @@ export default function TriagePage() {
         console.error("API Error Response:", responseData);
         throw new Error(responseData.detail || `HTTP error! Status: ${response.status}`);
       }
-      
+
       console.log("API Success Response:", responseData);
-      
+
       // Signal that the loading is complete
       setLoadingComplete(true);
-      
+
       // Small delay to show the completion animation
       setTimeout(() => {
         setTriageResult(responseData);
         setAudioBlob(null); // <--- Clear the blob after successful processing
         setIsLoading(false);
       }, 1000); // Give time for the 100% animation
-      
+
     } catch (error) {
       console.error('Error processing audio:', error);
       setErrorMessage(error.message || 'An unknown error occurred during processing.');
@@ -102,6 +104,54 @@ export default function TriagePage() {
       setLoadingComplete(false);
     }
   }, []); // Remove FASTAPI_URL from dependencies since it's now constant
+
+  const processText = useCallback(async (textData) => {
+    if (!textData || !textData.symptoms) {
+      setErrorMessage('Please enter symptoms before submitting.');
+      return;
+    }
+
+    console.log("Parent: Processing text input:", textData);
+    setIsLoading(true);
+    setLoadingComplete(false);
+    setErrorMessage('');
+
+    try {
+      const response = await fetch(`${FASTAPI_URL}/triage/process_text/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          transcript_text: textData.symptoms
+        }),
+      });
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        console.error("API Error Response:", responseData);
+        throw new Error(responseData.detail || `HTTP error! Status: ${response.status}`);
+      }
+
+      console.log("API Success Response:", responseData);
+
+      // Signal that the loading is complete
+      setLoadingComplete(true);
+
+      // Small delay to show the completion animation
+      setTimeout(() => {
+        setTriageResult(responseData);
+        setIsLoading(false);
+      }, 1000);
+
+    } catch (error) {
+      console.error('Error processing text:', error);
+      setErrorMessage(error.message || 'An unknown error occurred during processing.');
+      setTriageResult(null);
+      setIsLoading(false);
+      setLoadingComplete(false);
+    }
+  }, []);
 
   // Separate useEffect with better dependency management
   useEffect(() => {
@@ -118,6 +168,11 @@ export default function TriagePage() {
     setIsRecording(false);
     setLoadingComplete(false);
     processedBlobRef.current = null; // Reset processed blob reference
+  };
+
+  const toggleInputMode = () => {
+    setInputMode(inputMode === 'voice' ? 'text' : 'voice');
+    startNewTriage(); // Reset when switching modes
   };
 
   const styles = {
@@ -369,24 +424,91 @@ export default function TriagePage() {
           </div>
         )}
 
-        {/* Audio Recorder Section */}
-        <section style={styles.recorderSection}>
-          <h2 style={styles.recorderTitle}>
-            <FaMicrophone />
-            Voice Recorder
-          </h2>
-          <p style={styles.recorderDescription}>
-            Click the record button and describe the patient's symptoms, medical history, 
-            and any immediate concerns. Speak clearly and provide as much relevant detail as possible.
-          </p>
-          
-          <AudioRecorder
-            onRecordingStart={handleRecordingStart}
-            onRecordingStop={handleRecordingStop}
-            isRecording={isRecording}
-            disabled={isLoading}
-          />
-        </section>
+        {/* Input Mode Toggle */}
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div style={{
+            display: 'inline-flex',
+            background: 'white',
+            borderRadius: '9999px',
+            padding: '0.25rem',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+            border: '1px solid #e5e7eb'
+          }}>
+            <button
+              onClick={() => setInputMode('voice')}
+              style={{
+                padding: '0.75rem 1.5rem',
+                borderRadius: '9999px',
+                background: inputMode === 'voice' ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' : 'transparent',
+                color: inputMode === 'voice' ? 'white' : '#6b7280',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '0.875rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <FaMicrophone size={14} />
+              Voice Input
+            </button>
+            <button
+              onClick={() => setInputMode('text')}
+              style={{
+                padding: '0.75rem 1.5rem',
+                borderRadius: '9999px',
+                background: inputMode === 'text' ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' : 'transparent',
+                color: inputMode === 'text' ? 'white' : '#6b7280',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '0.875rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <FaKeyboard size={14} />
+              Text Input
+            </button>
+          </div>
+        </div>
+
+        {/* Audio Recorder or Text Form Section */}
+        {inputMode === 'voice' ? (
+          <section style={styles.recorderSection}>
+            <h2 style={styles.recorderTitle}>
+              <FaMicrophone />
+              Voice Recorder
+            </h2>
+            <p style={styles.recorderDescription}>
+              Click the record button and describe the patient's symptoms, medical history,
+              and any immediate concerns. Speak clearly and provide as much relevant detail as possible.
+            </p>
+
+            <AudioRecorder
+              onRecordingStart={handleRecordingStart}
+              onRecordingStop={handleRecordingStop}
+              isRecording={isRecording}
+              disabled={isLoading}
+            />
+          </section>
+        ) : (
+          <section style={styles.recorderSection}>
+            <h2 style={styles.recorderTitle}>
+              <FaKeyboard />
+              Manual Entry
+            </h2>
+            <p style={styles.recorderDescription}>
+              Enter the patient's symptoms and medical concerns in the text field below.
+            </p>
+
+            <TriageForm onSubmit={processText} />
+          </section>
+        )}
 
         {/* Loading State */}
         {isLoading && (
@@ -404,8 +526,8 @@ export default function TriagePage() {
         
         {/* Triage Results */}
         {triageResult && (
-          <div style={styles.contentSection}>
-            <RecommendationDisplay result={triageResult} />
+          <div style={{ marginTop: '2rem' }}>
+            <TriageResults result={triageResult} onStartNew={startNewTriage} />
           </div>
         )}
 

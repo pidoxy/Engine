@@ -5,7 +5,7 @@ import os
 import time
 
 # Use a specific model name for this task if desired, or the general one
-GEMINI_MODEL_CLINICAL_EXTRACT = os.getenv("GEMINI_MODEL_CLINICAL_EXTRACT", "gemini-3-flash-preview")
+GEMINI_MODEL_CLINICAL_EXTRACT = os.getenv("GEMINI_MODEL_CLINICAL_EXTRACT", "gemini-3-pro-preview")
 GOOGLE_API_KEY_CLINICAL = os.environ.get("GOOGLE_API_KEY")
 
 _MODERN_GEMINI_PREFIXES = ("gemini-1.5", "gemini-2", "gemini-3")

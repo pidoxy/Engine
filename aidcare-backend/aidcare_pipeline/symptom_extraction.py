@@ -4,6 +4,7 @@ import json
 import os
 import time
 from dotenv import load_dotenv
+from .rate_limiter import cached_gemini_call, RateLimitExceeded
 
 load_dotenv()
 
@@ -12,6 +13,7 @@ GOOGLE_API_KEY_SYMPTOMS = os.environ.get("GOOGLE_API_KEY") # Expect API key from
 
 _MODERN_GEMINI_PREFIXES = ("gemini-1.5", "gemini-2", "gemini-3")
 
+@cached_gemini_call(ttl=3600, rate_limit_id="symptom_extraction")
 def extract_symptoms_with_gemini(transcript_text: str) -> list:
     if not GOOGLE_API_KEY_SYMPTOMS:
         raise ValueError("GOOGLE_API_KEY not found in environment for symptom extraction.")

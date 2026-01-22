@@ -3,12 +3,14 @@ import google.generativeai as genai
 import json
 import os
 import time
+from .rate_limiter import cached_gemini_call, RateLimitExceeded
 
 GEMINI_MODEL_NAME_RECOMMEND = os.getenv("GEMINI_MODEL_RECOMMEND", "gemini-3-flash-preview")
 GOOGLE_API_KEY_RECOMMEND = os.environ.get("GOOGLE_API_KEY")
 
 _MODERN_GEMINI_PREFIXES = ("gemini-1.5", "gemini-2", "gemini-3")
 
+@cached_gemini_call(ttl=3600, rate_limit_id="recommendation")
 def generate_triage_recommendation(symptoms_list: list, retrieved_guideline_entries: list) -> dict:
     if not GOOGLE_API_KEY_RECOMMEND:
         # In a real app, you might want to raise an exception or handle this more gracefully

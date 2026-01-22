@@ -4,7 +4,7 @@ import json
 import os
 import time
 
-GEMINI_MODEL_CLINICAL_SUPPORT = os.getenv("GEMINI_MODEL_CLINICAL_SUPPORT", "gemini-3-flash-preview")
+GEMINI_MODEL_CLINICAL_SUPPORT = os.getenv("GEMINI_MODEL_CLINICAL_SUPPORT", "gemini-3-pro-preview")
 # GOOGLE_API_KEY is expected to be loaded by main.py and genai configured there,
 # but functions should ideally be self-contained or clearly state assumptions.
 # For this setup, main.py will handle genai.configure().

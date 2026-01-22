@@ -23,6 +23,7 @@ from aidcare_pipeline.rag_retrieval import (
     GuidelineRetriever 
 )
 from aidcare_pipeline.recommendation import generate_triage_recommendation
+from aidcare_pipeline.rate_limiter import get_rate_limit_stats, clear_cache, RateLimitExceeded
 # For Clinical Mode - Step 2 (You'll create this function/module later)
 # from aidcare_pipeline.clinical_support_generation import generate_clinical_support_details_with_gemini
 from pydantic import BaseModel
@@ -592,6 +593,9 @@ async def health_check():
     if "clinical_retriever" in app_state and app_state["clinical_retriever"] and app_state["clinical_retriever"].index.ntotal > 0:
         clin_ret_status = f"Initialized ({app_state['clinical_retriever'].index.ntotal} vectors)"
 
+    # Get rate limit stats
+    rate_limit_stats = get_rate_limit_stats("global")
+
     return {
         "status": "healthy",
         "timestamp": time.time(),
@@ -600,5 +604,20 @@ async def health_check():
             "chw_retriever": chw_ret_status,
             "clinical_retriever": clin_ret_status,
             "gemini_api_connectivity": "Dependent_on_key_and_network"
-        }
+        },
+        "rate_limiting": rate_limit_stats
+    }
+
+@app.post("/admin/clear_cache")
+async def admin_clear_cache():
+    """Admin endpoint to clear Gemini response cache"""
+    cleared = clear_cache()
+    return {"message": f"Cache cleared successfully", "entries_cleared": cleared}
+
+@app.get("/admin/stats")
+async def admin_stats():
+    """Admin endpoint to view rate limiting and cache statistics"""
+    return {
+        "rate_limit_stats": get_rate_limit_stats("global"),
+        "timestamp": time.time()
     }
