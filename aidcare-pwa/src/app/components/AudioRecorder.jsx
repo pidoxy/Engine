@@ -4,8 +4,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FaMicrophone, FaStop, FaMicrophoneSlash } from 'react-icons/fa';
 
-// Props: onRecordingStart, onRecordingStop (passes Blob back), isRecording (boolean), disabled (boolean)
-export default function AudioRecorder({ onRecordingStart, onRecordingStop, isRecording, disabled }) {
+// Props: onRecordingStart, onRecordingStop (passes Blob back), isRecording (boolean), disabled (boolean), customStyle (object)
+export default function AudioRecorder({ onRecordingStart, onRecordingStop, isRecording, disabled, customStyle }) {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   // Permission states: 'unknown', 'prompt', 'granted', 'denied'
@@ -226,60 +226,62 @@ export default function AudioRecorder({ onRecordingStart, onRecordingStop, isRec
     }
   };
 
+  // Use custom style if provided (for dark theme circular button)
+  const finalStartStyle = customStyle || styles.startButton;
+  const finalStopStyle = customStyle || styles.stopButton;
+
   return (
-    <div style={styles.container}>
+    <div style={customStyle ? { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' } : styles.container}>
       {!isRecording ? (
-        <button 
-          style={styles.startButton}
-          onClick={handleStartRecording} 
-          disabled={disabled || permissionState === 'denied'} // Disable if denied, let user fix in settings
+        <button
+          style={finalStartStyle}
+          onClick={handleStartRecording}
+          disabled={disabled || permissionState === 'denied'}
           onMouseOver={(e) => {
             if (!disabled && permissionState !== 'denied') {
-              e.target.style.transform = 'translateY(-2px)';
-              e.target.style.boxShadow = '0 8px 20px rgba(5, 150, 105, 0.4)';
+              e.target.style.transform = customStyle ? 'scale(1.05)' : 'translateY(-2px)';
+              e.target.style.boxShadow = customStyle ? '0 12px 40px rgba(59, 158, 255, 0.4)' : '0 8px 20px rgba(5, 150, 105, 0.4)';
             }
           }}
           onMouseOut={(e) => {
             if (!disabled && permissionState !== 'denied') {
-              e.target.style.transform = 'translateY(0)';
-              e.target.style.boxShadow = '0 4px 12px rgba(5, 150, 105, 0.3)';
+              e.target.style.transform = 'scale(1)';
+              e.target.style.boxShadow = customStyle ? '0 8px 32px rgba(59, 158, 255, 0.3)' : '0 4px 12px rgba(5, 150, 105, 0.3)';
             }
           }}
         >
-          {buttonIcon}
-          <span>{buttonText}</span>
+          {customStyle ? <FaMicrophone /> : <>{buttonIcon} <span>{buttonText}</span></>}
         </button>
       ) : (
-        <button 
-          style={styles.stopButton}
-          onClick={handleStopRecording} 
+        <button
+          style={finalStopStyle}
+          onClick={handleStopRecording}
           disabled={disabled}
           onMouseOver={(e) => {
             if (!disabled) {
-              e.target.style.transform = 'translateY(-2px)';
-              e.target.style.boxShadow = '0 8px 20px rgba(239, 68, 68, 0.4)';
+              e.target.style.transform = customStyle ? 'scale(1.05)' : 'translateY(-2px)';
+              e.target.style.boxShadow = customStyle ? '0 12px 40px rgba(239, 68, 68, 0.4)' : '0 8px 20px rgba(239, 68, 68, 0.4)';
             }
           }}
           onMouseOut={(e) => {
             if (!disabled) {
-              e.target.style.transform = 'translateY(0)';
-              e.target.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.3)';
+              e.target.style.transform = 'scale(1)';
+              e.target.style.boxShadow = customStyle ? '0 8px 32px rgba(239, 68, 68, 0.3)' : '0 4px 12px rgba(239, 68, 68, 0.3)';
             }
           }}
         >
-          <FaStop size={24} />
-          <span>Stop Recording</span>
+          {customStyle ? <FaStop /> : <><FaStop size={24} /> <span>Stop Recording</span></>}
         </button>
       )}
-      
-      {isRecording && (
+
+      {!customStyle && isRecording && (
         <div style={styles.recordingIndicator}>
           <FaMicrophone style={styles.recordingIcon} />
           <span>Recording in progress...</span>
         </div>
       )}
-      
-      {userMessage && (
+
+      {!customStyle && userMessage && (
         <div style={styles.userMessage}>
           {userMessage}
         </div>
