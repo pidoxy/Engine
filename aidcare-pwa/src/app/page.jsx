@@ -1,26 +1,196 @@
 'use client'
 
-import Link from 'next/link';
-import { FaStethoscope, FaUserMd, FaHeartbeat, FaShieldAlt, FaClock, FaUsers } from 'react-icons/fa';
+import React, { useState, useCallback, useRef } from 'react';
+import { FaStethoscope, FaMicrophone, FaKeyboard, FaUserMd, FaHistory, FaTimes, FaBars } from 'react-icons/fa';
 import { MdLocalHospital, MdHealthAndSafety } from 'react-icons/md';
+import AudioRecorder from './components/AudioRecorder';
+import TriageForm from './components/triage/TriageForm';
+import TriageResults from './components/triage/TriageResults';
+import LoadingSpinner from './components/LoadingSpinner';
+import ErrorMessage from './components/ErrorMessage';
 
-export default function HomePage() {
+export default function UnifiedDashboard() {
+  // Mode state
+  const [mode, setMode] = useState('triage'); // 'triage' or 'clinical'
+  const [inputMode, setInputMode] = useState('voice'); // 'voice' or 'text'
+
+  // Processing state
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [loadingComplete, setLoadingComplete] = useState(false);
+
+  // History sidebar state
+  const [showHistory, setShowHistory] = useState(false);
+  const [sessionHistory, setSessionHistory] = useState([]);
+
+  // Refs
+  const processedBlobRef = useRef(null);
+
+  const FASTAPI_URL = process.env.NEXT_PUBLIC_AIDCARE_API_BASE_URL || 'http://localhost:8000';
+
+  // Recording handlers
+  const handleRecordingStart = useCallback(() => {
+    setIsRecording(true);
+    setAudioBlob(null);
+    setResult(null);
+    setErrorMessage('');
+    setLoadingComplete(false);
+    processedBlobRef.current = null;
+  }, []);
+
+  const handleRecordingStop = useCallback((blob) => {
+    setIsRecording(false);
+    if (blob && blob.size > 0) {
+      setAudioBlob(blob);
+      processedBlobRef.current = null;
+    } else {
+      setErrorMessage("Recording failed. Please try again.");
+    }
+  }, []);
+
+  // Process audio
+  const processAudio = useCallback(async (blobToProcess) => {
+    if (!blobToProcess || processedBlobRef.current === blobToProcess) return;
+
+    processedBlobRef.current = blobToProcess;
+    setIsLoading(true);
+    setLoadingComplete(false);
+    setErrorMessage('');
+
+    const formData = new FormData();
+    formData.append('audio_file', blobToProcess, `recording_${Date.now()}.wav`);
+
+    try {
+      const endpoint = mode === 'triage'
+        ? `${FASTAPI_URL}/triage/process_audio/`
+        : `${FASTAPI_URL}/clinical_support/process_consultation/`;
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        body: formData,
+      });
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(responseData.detail || `HTTP error! Status: ${response.status}`);
+      }
+
+      setLoadingComplete(true);
+
+      setTimeout(() => {
+        setResult(responseData);
+        addToHistory(responseData);
+        setAudioBlob(null);
+        setIsLoading(false);
+      }, 1000);
+
+    } catch (error) {
+      setErrorMessage(error.message || 'An error occurred during processing.');
+      processedBlobRef.current = null;
+      setIsLoading(false);
+      setLoadingComplete(false);
+    }
+  }, [mode, FASTAPI_URL]);
+
+  // Process text
+  const processText = useCallback(async (textData) => {
+    if (!textData || !textData.symptoms) {
+      setErrorMessage('Please enter symptoms before submitting.');
+      return;
+    }
+
+    setIsLoading(true);
+    setLoadingComplete(false);
+    setErrorMessage('');
+
+    try {
+      const endpoint = mode === 'triage'
+        ? `${FASTAPI_URL}/triage/process_text/`
+        : `${FASTAPI_URL}/clinical_support/process_consultation/`;
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript_text: textData.symptoms }),
+      });
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(responseData.detail || `HTTP error! Status: ${response.status}`);
+      }
+
+      setLoadingComplete(true);
+
+      setTimeout(() => {
+        setResult(responseData);
+        addToHistory(responseData);
+        setIsLoading(false);
+      }, 1000);
+
+    } catch (error) {
+      setErrorMessage(error.message || 'An error occurred during processing.');
+      setIsLoading(false);
+      setLoadingComplete(false);
+    }
+  }, [mode, FASTAPI_URL]);
+
+  // Auto-process audio when blob is ready
+  React.useEffect(() => {
+    if (audioBlob && !isRecording && !isLoading && processedBlobRef.current !== audioBlob) {
+      processAudio(audioBlob);
+    }
+  }, [audioBlob, isRecording, isLoading, processAudio]);
+
+  // Add result to history
+  const addToHistory = (resultData) => {
+    const historyItem = {
+      id: Date.now(),
+      timestamp: new Date().toISOString(),
+      mode: mode,
+      result: resultData
+    };
+    setSessionHistory(prev => [historyItem, ...prev].slice(0, 10)); // Keep last 10
+  };
+
+  // Start new session
+  const startNewSession = () => {
+    setAudioBlob(null);
+    setResult(null);
+    setErrorMessage('');
+    setIsRecording(false);
+    setLoadingComplete(false);
+    processedBlobRef.current = null;
+  };
+
+  // Switch mode
+  const switchMode = (newMode) => {
+    if (newMode !== mode) {
+      setMode(newMode);
+      startNewSession();
+    }
+  };
+
   const styles = {
     container: {
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #e0f2fe 0%, #ffffff 50%, #e8f5e8 100%)',
+      background: 'linear-gradient(135deg, #f0f9ff 0%, #ffffff 50%, #f0fdf4 100%)',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     },
     header: {
-      background: '#ffffff',
+      background: 'white',
       boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-      borderBottom: '1px solid #e2e8f0',
-      padding: '1rem 0'
+      borderBottom: '1px solid #e5e7eb',
+      padding: '1rem',
+      position: 'sticky',
+      top: 0,
+      zIndex: 100
     },
     headerContent: {
-      maxWidth: '1200px',
+      maxWidth: '1400px',
       margin: '0 auto',
-      padding: '0 1rem',
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center'
@@ -31,7 +201,7 @@ export default function HomePage() {
       gap: '0.75rem'
     },
     logoIcon: {
-      background: 'linear-gradient(135deg, #2563eb, #059669)',
+      background: 'linear-gradient(135deg, #3b82f6, #10b981)',
       padding: '0.5rem',
       borderRadius: '0.5rem',
       color: 'white'
@@ -43,221 +213,167 @@ export default function HomePage() {
       margin: 0
     },
     logoSubtext: {
-      fontSize: '0.875rem',
+      fontSize: '0.75rem',
       color: '#6b7280',
       margin: 0
+    },
+    headerRight: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '1rem'
     },
     hipaaLabel: {
       display: 'flex',
       alignItems: 'center',
       gap: '0.5rem',
-      color: '#059669',
+      color: '#10b981',
       fontSize: '0.875rem',
       fontWeight: '500'
     },
-    main: {
-      maxWidth: '1200px',
+    historyButton: {
+      background: 'white',
+      border: '1px solid #e5e7eb',
+      borderRadius: '0.5rem',
+      padding: '0.5rem 1rem',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.5rem',
+      cursor: 'pointer',
+      fontSize: '0.875rem',
+      color: '#374151',
+      fontWeight: '500',
+      transition: 'all 0.2s'
+    },
+    mainLayout: {
+      maxWidth: '1400px',
       margin: '0 auto',
-      padding: '3rem 1rem'
+      padding: '2rem 1rem',
+      display: 'grid',
+      gridTemplateColumns: showHistory ? '1fr 320px' : '1fr',
+      gap: '2rem',
+      transition: 'grid-template-columns 0.3s ease'
     },
-    heroSection: {
-      textAlign: 'center',
-      marginBottom: '4rem'
+    mainContent: {
+      minWidth: 0
     },
-    heroIcon: {
+    modeSelector: {
+      display: 'flex',
+      gap: '1rem',
+      marginBottom: '2rem',
+      background: 'white',
+      padding: '0.5rem',
+      borderRadius: '1rem',
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+      border: '1px solid #e5e7eb'
+    },
+    modeTab: (active) => ({
+      flex: 1,
+      padding: '1rem',
+      borderRadius: '0.75rem',
+      border: 'none',
+      background: active ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'transparent',
+      color: active ? 'white' : '#6b7280',
+      fontWeight: '600',
+      fontSize: '1rem',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '0.5rem',
+      transition: 'all 0.3s ease'
+    }),
+    inputSection: {
+      background: 'white',
+      borderRadius: '1rem',
+      padding: '2rem',
+      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+      border: '1px solid #e5e7eb',
+      marginBottom: '2rem'
+    },
+    inputModeToggle: {
+      display: 'flex',
+      gap: '0.5rem',
+      marginBottom: '1.5rem',
+      background: '#f9fafb',
+      padding: '0.25rem',
+      borderRadius: '0.75rem',
+      width: 'fit-content',
+      margin: '0 auto 1.5rem'
+    },
+    inputModeButton: (active) => ({
+      padding: '0.75rem 1.5rem',
+      borderRadius: '0.5rem',
+      background: active ? 'white' : 'transparent',
+      color: active ? '#3b82f6' : '#6b7280',
+      border: 'none',
+      cursor: 'pointer',
+      fontWeight: '600',
+      fontSize: '0.875rem',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.5rem',
+      transition: 'all 0.2s',
+      boxShadow: active ? '0 2px 4px rgba(0, 0, 0, 0.1)' : 'none'
+    }),
+    statusBadge: {
       display: 'inline-flex',
       alignItems: 'center',
-      justifyContent: 'center',
-      width: '5rem',
-      height: '5rem',
-      background: 'linear-gradient(135deg, #2563eb, #059669)',
-      borderRadius: '50%',
-      marginBottom: '1.5rem',
-      color: 'white'
-    },
-    heroTitle: {
-      fontSize: 'clamp(2.5rem, 5vw, 3.5rem)',
-      fontWeight: 'bold',
-      color: '#1f2937',
-      marginBottom: '1.5rem',
-      lineHeight: 1.2
-    },
-    gradientText: {
-      background: 'linear-gradient(135deg, #2563eb, #059669)',
-      WebkitBackgroundClip: 'text',
-      WebkitTextFillColor: 'transparent',
-      backgroundClip: 'text'
-    },
-    heroSubtitle: {
-      fontSize: '1.25rem',
-      color: '#4b5563',
-      marginBottom: '1rem',
-      maxWidth: '600px',
-      margin: '0 auto 1rem'
-    },
-    heroDescription: {
-      fontSize: '1rem',
-      color: '#6b7280',
-      maxWidth: '500px',
-      margin: '0 auto 2rem'
-    },
-    buttonContainer: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '1rem',
-      alignItems: 'center',
-      marginBottom: '4rem'
-    },
-    primaryButton: {
-      background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
-      color: 'white',
-      padding: '1rem 2rem',
-      borderRadius: '0.75rem',
-      fontSize: '1.125rem',
-      fontWeight: '600',
-      border: 'none',
-      cursor: 'pointer',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '0.75rem',
-      minWidth: '280px',
-      justifyContent: 'center',
-      boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)',
-      transition: 'all 0.3s ease'
-    },
-    secondaryButton: {
-      background: 'linear-gradient(135deg, #059669, #047857)',
-      color: 'white',
-      padding: '1rem 2rem',
-      borderRadius: '0.75rem',
-      fontSize: '1.125rem',
-      fontWeight: '600',
-      border: 'none',
-      cursor: 'pointer',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '0.75rem',
-      minWidth: '280px',
-      justifyContent: 'center',
-      boxShadow: '0 4px 12px rgba(5, 150, 105, 0.3)',
-      transition: 'all 0.3s ease'
-    },
-    featuresGrid: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-      gap: '2rem',
-      marginBottom: '4rem'
-    },
-    featureCard: {
-      background: 'white',
-      borderRadius: '1rem',
-      padding: '2rem',
-      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
-      border: '1px solid #e5e7eb',
-      transition: 'all 0.3s ease'
-    },
-    featureIcon: {
-      width: '3.5rem',
-      height: '3.5rem',
-      borderRadius: '0.5rem',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
+      gap: '0.5rem',
+      padding: '0.5rem 1rem',
+      borderRadius: '9999px',
+      fontSize: '0.875rem',
+      fontWeight: '500',
       marginBottom: '1.5rem'
     },
-    featureTitle: {
-      fontSize: '1.25rem',
-      fontWeight: '600',
-      color: '#1f2937',
-      marginBottom: '1rem'
+    resultsSection: {
+      marginTop: '2rem'
     },
-    featureDescription: {
-      color: '#6b7280',
-      lineHeight: 1.6
-    },
-    trustSection: {
+    historySidebar: {
       background: 'white',
       borderRadius: '1rem',
-      padding: '2rem',
+      padding: '1.5rem',
       boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
       border: '1px solid #e5e7eb',
-      textAlign: 'center',
-      marginBottom: '4rem'
+      maxHeight: 'calc(100vh - 200px)',
+      overflow: 'auto',
+      position: 'sticky',
+      top: '120px'
     },
-    trustTitle: {
-      fontSize: '1.5rem',
-      fontWeight: 'bold',
-      color: '#1f2937',
-      marginBottom: '2rem'
-    },
-    trustGrid: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-      gap: '2rem'
-    },
-    trustItem: {
-      textAlign: 'center'
-    },
-    trustNumber: {
-      fontSize: '2rem',
-      fontWeight: 'bold',
-      marginBottom: '0.5rem'
-    },
-    trustLabel: {
-      color: '#6b7280',
-      fontSize: '0.875rem'
-    },
-    footer: {
-      background: '#1f2937',
-      color: 'white',
-      padding: '3rem 0',
-      marginTop: '4rem'
-    },
-    footerContent: {
-      maxWidth: '1200px',
-      margin: '0 auto',
-      padding: '0 1rem'
-    },
-    footerGrid: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-      gap: '2rem',
-      marginBottom: '2rem'
-    },
-    footerBrand: {
+    historyHeader: {
       display: 'flex',
+      justifyContent: 'space-between',
       alignItems: 'center',
-      gap: '0.75rem',
-      marginBottom: '1rem'
+      marginBottom: '1rem',
+      paddingBottom: '1rem',
+      borderBottom: '1px solid #e5e7eb'
     },
-    footerBrandIcon: {
-      background: 'linear-gradient(135deg, #2563eb, #059669)',
-      padding: '0.5rem',
-      borderRadius: '0.5rem'
-    },
-    footerTitle: {
+    historyTitle: {
+      fontSize: '1.125rem',
       fontWeight: '600',
-      marginBottom: '1rem'
-    },
-    footerList: {
-      listStyle: 'none',
-      padding: 0,
+      color: '#1f2937',
       margin: 0
     },
-    footerLink: {
-      color: '#9ca3af',
-      textDecoration: 'none',
-      fontSize: '0.875rem',
-      display: 'block',
-      padding: '0.25rem 0',
-      transition: 'color 0.3s ease'
+    closeButton: {
+      background: 'transparent',
+      border: 'none',
+      cursor: 'pointer',
+      color: '#6b7280',
+      padding: '0.25rem'
     },
-    footerBottom: {
-      borderTop: '1px solid #374151',
-      paddingTop: '2rem',
+    historyItem: {
+      padding: '1rem',
+      marginBottom: '0.75rem',
+      background: '#f9fafb',
+      borderRadius: '0.5rem',
+      cursor: 'pointer',
+      transition: 'all 0.2s',
+      border: '1px solid transparent'
+    },
+    emptyHistory: {
       textAlign: 'center',
       color: '#9ca3af',
-      fontSize: '0.875rem'
+      fontSize: '0.875rem',
+      padding: '2rem 1rem'
     }
   };
 
@@ -275,206 +391,212 @@ export default function HomePage() {
               <p style={styles.logoSubtext}>AI Medical Assistant</p>
             </div>
           </div>
-          <div style={styles.hipaaLabel}>
-            <MdHealthAndSafety size={20} />
-            <span>HIPAA Compliant</span>
+
+          <div style={styles.headerRight}>
+            <div style={styles.hipaaLabel}>
+              <MdHealthAndSafety size={20} />
+              <span>HIPAA Compliant</span>
+            </div>
+
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              style={{
+                ...styles.historyButton,
+                background: showHistory ? '#f0f9ff' : 'white',
+                borderColor: showHistory ? '#3b82f6' : '#e5e7eb'
+              }}
+              onMouseOver={(e) => e.target.style.background = '#f0f9ff'}
+              onMouseOut={(e) => e.target.style.background = showHistory ? '#f0f9ff' : 'white'}
+            >
+              {showHistory ? <FaTimes size={16} /> : <FaHistory size={16} />}
+              <span>{showHistory ? 'Close' : 'History'}</span>
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <main style={styles.main}>
-        <div style={styles.heroSection}>
-          <div style={styles.heroIcon}>
-            <FaHeartbeat size={40} />
-          </div>
-          <h1 style={styles.heroTitle}>
-            Welcome to <span style={styles.gradientText}>AidCare</span>
-          </h1>
-          <p style={styles.heroSubtitle}>
-            Your AI-powered medical assistant for intelligent triage and clinical decision support
-          </p>
-          <p style={styles.heroDescription}>
-            Streamline patient assessment, improve care quality, and support healthcare professionals with advanced AI technology
-          </p>
+      {/* Main Layout */}
+      <div style={styles.mainLayout}>
+        {/* Main Content */}
+        <div style={styles.mainContent}>
+          {/* Mode Selector */}
+          <div style={styles.modeSelector}>
+            <button
+              onClick={() => switchMode('triage')}
+              style={styles.modeTab(mode === 'triage')}
+              onMouseOver={(e) => mode !== 'triage' && (e.target.style.background = '#f9fafb')}
+              onMouseOut={(e) => mode !== 'triage' && (e.target.style.background = 'transparent')}
+            >
+              <MdLocalHospital size={20} />
+              <span>CHW Triage</span>
+            </button>
 
-          {/* Main Action Buttons */}
-          <div style={styles.buttonContainer}>
-            <Link href="/triage" style={{ textDecoration: 'none' }}>
-              <button 
-                style={styles.primaryButton}
-                onMouseOver={(e) => {
-                  e.target.style.transform = 'translateY(-2px)';
-                  e.target.style.boxShadow = '0 8px 20px rgba(37, 99, 235, 0.4)';
-                }}
-                onMouseOut={(e) => {
-                  e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.3)';
-                }}
+            <button
+              onClick={() => switchMode('clinical')}
+              style={styles.modeTab(mode === 'clinical')}
+              onMouseOver={(e) => mode !== 'clinical' && (e.target.style.background = '#f9fafb')}
+              onMouseOut={(e) => mode !== 'clinical' && (e.target.style.background = 'transparent')}
+            >
+              <FaUserMd size={20} />
+              <span>Clinical Support</span>
+            </button>
+          </div>
+
+          {/* Input Section */}
+          <div style={styles.inputSection}>
+            {/* Input Mode Toggle */}
+            <div style={styles.inputModeToggle}>
+              <button
+                onClick={() => setInputMode('voice')}
+                style={styles.inputModeButton(inputMode === 'voice')}
               >
-                <MdLocalHospital size={24} />
-                <span>Start New Triage Session</span>
+                <FaMicrophone size={14} />
+                <span>Voice</span>
               </button>
-            </Link>
-            
-            <Link href="/doctor/consult" style={{ textDecoration: 'none' }}>
-              <button 
-                style={styles.secondaryButton}
-                onMouseOver={(e) => {
-                  e.target.style.transform = 'translateY(-2px)';
-                  e.target.style.boxShadow = '0 8px 20px rgba(5, 150, 105, 0.4)';
-                }}
-                onMouseOut={(e) => {
-                  e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = '0 4px 12px rgba(5, 150, 105, 0.3)';
-                }}
+              <button
+                onClick={() => setInputMode('text')}
+                style={styles.inputModeButton(inputMode === 'text')}
               >
-                <FaUserMd size={24} />
-                <span>Doctor Clinical Support</span>
+                <FaKeyboard size={14} />
+                <span>Text</span>
               </button>
-            </Link>
-          </div>
-        </div>
+            </div>
 
-        {/* Features Grid */}
-        <div style={styles.featuresGrid}>
-          <div 
-            style={styles.featureCard}
-            onMouseOver={(e) => {
-              e.currentTarget.style.transform = 'translateY(-5px)';
-              e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.1)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.05)';
-            }}
-          >
-            <div style={{...styles.featureIcon, background: '#dbeafe'}}>
-              <FaClock size={28} color="#2563eb" />
-            </div>
-            <h3 style={styles.featureTitle}>Rapid Assessment</h3>
-            <p style={styles.featureDescription}>
-              Get instant, AI-powered patient assessments to prioritize care and reduce wait times in critical situations.
-            </p>
-          </div>
-
-          <div 
-            style={styles.featureCard}
-            onMouseOver={(e) => {
-              e.currentTarget.style.transform = 'translateY(-5px)';
-              e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.1)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.05)';
-            }}
-          >
-            <div style={{...styles.featureIcon, background: '#dcfce7'}}>
-              <FaShieldAlt size={28} color="#059669" />
-            </div>
-            <h3 style={styles.featureTitle}>Evidence-Based</h3>
-            <p style={styles.featureDescription}>
-              Built on clinical guidelines and medical evidence to provide reliable, accurate recommendations for healthcare providers.
-            </p>
-          </div>
-
-          <div 
-            style={styles.featureCard}
-            onMouseOver={(e) => {
-              e.currentTarget.style.transform = 'translateY(-5px)';
-              e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.1)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.05)';
-            }}
-          >
-            <div style={{...styles.featureIcon, background: '#f3e8ff'}}>
-              <FaUsers size={28} color="#7c3aed" />
-            </div>
-            <h3 style={styles.featureTitle}>Team Collaboration</h3>
-            <p style={styles.featureDescription}>
-              Seamlessly share patient information and recommendations across your healthcare team for coordinated care.
-            </p>
-          </div>
-        </div>
-
-        {/* Trust Indicators */}
-        <div style={styles.trustSection}>
-          <h2 style={styles.trustTitle}>Trusted by Healthcare Professionals</h2>
-          <div style={styles.trustGrid}>
-            <div style={styles.trustItem}>
-              <div style={{...styles.trustNumber, color: '#2563eb'}}>99.9%</div>
-              <div style={styles.trustLabel}>Uptime</div>
-            </div>
-            <div style={styles.trustItem}>
-              <div style={{...styles.trustNumber, color: '#059669'}}>HIPAA</div>
-              <div style={styles.trustLabel}>Compliant</div>
-            </div>
-            <div style={styles.trustItem}>
-              <div style={{...styles.trustNumber, color: '#7c3aed'}}>24/7</div>
-              <div style={styles.trustLabel}>Support</div>
-            </div>
-            <div style={styles.trustItem}>
-              <div style={{...styles.trustNumber, color: '#ea580c'}}>FDA</div>
-              <div style={styles.trustLabel}>Approved</div>
-            </div>
-          </div>
-        </div>
-      </main>
-
-      {/* Footer */}
-      <footer style={styles.footer}>
-        <div style={styles.footerContent}>
-          <div style={styles.footerGrid}>
-            <div>
-              <div style={styles.footerBrand}>
-                <div style={styles.footerBrandIcon}>
-                  <FaStethoscope size={20} color="white" />
-                </div>
-                <div>
-                  <h3 style={{margin: 0, fontSize: '1.125rem', fontWeight: 'bold'}}>AidCare</h3>
-                  <p style={{margin: 0, fontSize: '0.875rem', color: '#9ca3af'}}>AI Medical Assistant</p>
+            {/* Status Badge */}
+            {isRecording && (
+              <div style={{textAlign: 'center'}}>
+                <div style={{
+                  ...styles.statusBadge,
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  color: '#dc2626',
+                  border: '1px solid rgba(239, 68, 68, 0.2)'
+                }}>
+                  <FaMicrophone size={16} />
+                  <span>Recording...</span>
                 </div>
               </div>
-              <p style={{color: '#9ca3af', fontSize: '0.875rem', lineHeight: 1.5}}>
-                Empowering healthcare professionals with intelligent AI assistance for better patient outcomes.
-              </p>
-            </div>
-            
-            <div>
-              <h4 style={styles.footerTitle}>Solutions</h4>
-              <ul style={styles.footerList}>
-                <li><a href="#" style={styles.footerLink}>Patient Triage</a></li>
-                <li><a href="#" style={styles.footerLink}>Clinical Support</a></li>
-                <li><a href="#" style={styles.footerLink}>Decision Analytics</a></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 style={styles.footerTitle}>Resources</h4>
-              <ul style={styles.footerList}>
-                <li><a href="#" style={styles.footerLink}>Documentation</a></li>
-                <li><a href="#" style={styles.footerLink}>Training</a></li>
-                <li><a href="#" style={styles.footerLink}>Support</a></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 style={styles.footerTitle}>Company</h4>
-              <ul style={styles.footerList}>
-                <li><a href="#" style={styles.footerLink}>About Us</a></li>
-                <li><a href="#" style={styles.footerLink}>Privacy Policy</a></li>
-                <li><a href="#" style={styles.footerLink}>Terms of Service</a></li>
-              </ul>
-            </div>
+            )}
+
+            {isLoading && (
+              <div style={{textAlign: 'center'}}>
+                <div style={{
+                  ...styles.statusBadge,
+                  background: 'rgba(59, 130, 246, 0.1)',
+                  color: '#3b82f6',
+                  border: '1px solid rgba(59, 130, 246, 0.2)'
+                }}>
+                  <FaStethoscope size={16} />
+                  <span>Analyzing...</span>
+                </div>
+              </div>
+            )}
+
+            {/* Input Controls */}
+            {inputMode === 'voice' ? (
+              <AudioRecorder
+                onRecordingStart={handleRecordingStart}
+                onRecordingStop={handleRecordingStop}
+                isRecording={isRecording}
+                disabled={isLoading}
+              />
+            ) : (
+              <TriageForm onSubmit={processText} disabled={isLoading} />
+            )}
           </div>
-          
-          <div style={styles.footerBottom}>
-            <p>&copy; 2024 AidCare. All rights reserved. | Medical AI Assistant Platform</p>
-          </div>
+
+          {/* Loading State */}
+          {isLoading && (
+            <div style={styles.inputSection}>
+              <LoadingSpinner onComplete={loadingComplete} />
+            </div>
+          )}
+
+          {/* Error Message */}
+          {errorMessage && (
+            <div style={styles.inputSection}>
+              <ErrorMessage message={errorMessage} />
+              <div style={{textAlign: 'center', marginTop: '1rem'}}>
+                <button
+                  onClick={startNewSession}
+                  style={{
+                    background: '#3b82f6',
+                    color: 'white',
+                    padding: '0.75rem 1.5rem',
+                    borderRadius: '0.5rem',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: '600'
+                  }}
+                >
+                  Try Again
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Results */}
+          {result && (
+            <div style={styles.resultsSection}>
+              <TriageResults result={result} onStartNew={startNewSession} />
+            </div>
+          )}
         </div>
-      </footer>
+
+        {/* History Sidebar */}
+        {showHistory && (
+          <aside style={styles.historySidebar}>
+            <div style={styles.historyHeader}>
+              <h3 style={styles.historyTitle}>
+                <FaHistory size={18} style={{marginRight: '0.5rem', verticalAlign: 'middle'}} />
+                Session History
+              </h3>
+              <button
+                onClick={() => setShowHistory(false)}
+                style={styles.closeButton}
+                onMouseOver={(e) => e.target.style.color = '#1f2937'}
+                onMouseOut={(e) => e.target.style.color = '#6b7280'}
+              >
+                <FaTimes size={20} />
+              </button>
+            </div>
+
+            {sessionHistory.length === 0 ? (
+              <div style={styles.emptyHistory}>
+                No previous sessions
+              </div>
+            ) : (
+              sessionHistory.map((item) => (
+                <div
+                  key={item.id}
+                  style={styles.historyItem}
+                  onClick={() => {
+                    setResult(item.result);
+                    setMode(item.mode);
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.background = '#eff6ff';
+                    e.currentTarget.style.borderColor = '#3b82f6';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.background = '#f9fafb';
+                    e.currentTarget.style.borderColor = 'transparent';
+                  }}
+                >
+                  <div style={{fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem'}}>
+                    {new Date(item.timestamp).toLocaleString()}
+                  </div>
+                  <div style={{fontSize: '0.875rem', fontWeight: '500', color: '#1f2937'}}>
+                    {item.mode === 'triage' ? '🏥 Triage' : '👨‍⚕️ Clinical'}
+                  </div>
+                  <div style={{fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem'}}>
+                    {item.result?.triage_level || item.result?.urgency_level || 'Completed'}
+                  </div>
+                </div>
+              ))
+            )}
+          </aside>
+        )}
+      </div>
     </div>
   );
 }
