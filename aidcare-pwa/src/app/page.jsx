@@ -184,77 +184,83 @@ export default function TriageApp() {
     container: {
       display: 'flex',
       minHeight: '100vh',
-      background: '#f8f9fb',
+      background: 'linear-gradient(135deg, #f5f7fa 0%, #f9fafb 100%)',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
     },
     sidebar: {
-      width: '240px',
+      width: '260px',
       background: 'white',
-      borderRight: '2px solid #e5e7eb',
+      borderRight: '1px solid rgba(0,0,0,0.06)',
       padding: '2rem 0',
       display: 'flex',
-      flexDirection: 'column'
+      flexDirection: 'column',
+      boxShadow: '2px 0 12px rgba(0,0,0,0.03)'
     },
     logo: {
-      padding: '0 1.5rem 2rem',
-      borderBottom: '2px solid #e5e7eb',
-      marginBottom: '2rem'
+      padding: '0 1.5rem 1.75rem',
+      borderBottom: '1px solid rgba(0,0,0,0.06)',
+      marginBottom: '1.5rem'
     },
     logoTitle: {
-      fontSize: '1.5rem',
-      fontWeight: 'bold',
-      color: '#1e7c89',
+      fontSize: '1.625rem',
+      fontWeight: '700',
+      color: '#0f172a',
       margin: 0,
       display: 'flex',
       alignItems: 'center',
-      gap: '0.5rem'
+      gap: '0.625rem',
+      letterSpacing: '-0.02em'
     },
     logoSubtitle: {
-      fontSize: '0.75rem',
-      color: '#6b7280',
-      margin: '0.25rem 0 0',
+      fontSize: '0.6875rem',
+      color: '#64748b',
+      margin: '0.375rem 0 0',
       textTransform: 'uppercase',
-      letterSpacing: '0.1em'
+      letterSpacing: '0.08em',
+      fontWeight: '600'
     },
     nav: {
       flex: 1,
-      padding: '0 1rem'
+      padding: '0 0.875rem'
     },
     navItem: (active) => ({
       display: 'flex',
       alignItems: 'center',
       gap: '0.75rem',
-      padding: '0.875rem 1rem',
-      margin: '0 0 0.125rem 0',
-      borderRadius: 0,
-      background: active ? '#1e7c89' : 'transparent',
-      color: active ? 'white' : '#6b7280',
+      padding: '0.75rem 1rem',
+      margin: '0 0 0.25rem 0',
+      borderRadius: '8px',
+      background: active ? 'linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%)' : 'transparent',
+      color: active ? 'white' : '#64748b',
       fontWeight: active ? '600' : '500',
       fontSize: '0.9375rem',
       cursor: 'pointer',
       border: 'none',
-      borderLeft: active ? '4px solid #0d4f57' : '4px solid transparent',
       width: '100%',
       textAlign: 'left',
-      transition: 'all 0.15s'
+      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+      boxShadow: active ? '0 2px 8px rgba(14, 165, 233, 0.25)' : 'none'
     }),
     syncStatus: {
-      padding: '1.5rem',
-      borderTop: '2px solid #e5e7eb'
+      padding: '1.25rem 1.5rem',
+      borderTop: '1px solid rgba(0,0,0,0.06)',
+      background: 'rgba(248, 250, 252, 0.5)'
     },
     syncLabel: {
-      fontSize: '0.75rem',
-      color: '#6b7280',
+      fontSize: '0.6875rem',
+      color: '#64748b',
       textTransform: 'uppercase',
-      letterSpacing: '0.1em',
-      marginBottom: '0.5rem'
+      letterSpacing: '0.08em',
+      marginBottom: '0.625rem',
+      fontWeight: '600'
     },
     syncIndicator: {
       display: 'flex',
       alignItems: 'center',
       gap: '0.5rem',
-      fontSize: '0.875rem',
-      color: '#10b981'
+      fontSize: '0.8125rem',
+      color: '#10b981',
+      fontWeight: '500'
     },
     mainContent: {
       flex: 1,
@@ -263,19 +269,22 @@ export default function TriageApp() {
       overflow: 'auto'
     },
     header: {
-      background: 'white',
-      borderBottom: '2px solid #e5e7eb',
-      padding: '1rem 2rem',
+      background: 'rgba(255, 255, 255, 0.95)',
+      backdropFilter: 'blur(12px)',
+      borderBottom: '1px solid rgba(0,0,0,0.06)',
+      padding: '1.25rem 2.5rem',
       display: 'flex',
       justifyContent: 'space-between',
-      alignItems: 'center'
+      alignItems: 'center',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
     },
     breadcrumb: {
       display: 'flex',
       alignItems: 'center',
-      gap: '0.5rem',
-      color: '#6b7280',
-      fontSize: '0.875rem'
+      gap: '0.625rem',
+      color: '#64748b',
+      fontSize: '0.875rem',
+      fontWeight: '500'
     },
     headerActions: {
       display: 'flex',
@@ -283,46 +292,49 @@ export default function TriageApp() {
     },
     content: {
       flex: 1,
-      padding: '2rem',
-      maxWidth: '1200px',
+      padding: '2.5rem',
+      maxWidth: '1100px',
       margin: '0 auto',
       width: '100%'
     },
     infoBar: {
-      background: '#e6f4f6',
-      border: '2px solid #1e7c89',
-      borderRadius: 0,
-      padding: '1rem 1.25rem',
+      background: 'linear-gradient(135deg, #ecfeff 0%, #cffafe 100%)',
+      border: '1px solid #67e8f9',
+      borderRadius: '12px',
+      padding: '1.125rem 1.5rem',
       marginBottom: '2rem',
       display: 'flex',
       alignItems: 'center',
-      gap: '0.75rem',
-      borderLeft: '4px solid #1e7c89'
+      gap: '1rem',
+      boxShadow: '0 2px 8px rgba(6, 182, 212, 0.1)'
     },
     infoIcon: {
-      color: '#1e7c89',
-      fontSize: '1.25rem'
+      color: '#0891b2',
+      fontSize: '1.5rem'
     },
     infoText: {
       flex: 1
     },
     infoTitle: {
       fontWeight: '600',
-      color: '#1e7c89',
+      color: '#0e7490',
       fontSize: '0.9375rem',
-      marginBottom: '0.25rem'
+      marginBottom: '0.25rem',
+      letterSpacing: '-0.01em'
     },
     infoSubtext: {
-      color: '#4b7b83',
-      fontSize: '0.875rem',
-      margin: 0
+      color: '#0e7490',
+      fontSize: '0.8125rem',
+      margin: 0,
+      opacity: 0.8,
+      lineHeight: 1.5
     },
     card: {
       background: 'white',
-      borderRadius: 0,
-      padding: '3rem',
-      boxShadow: 'none',
-      border: '2px solid #e5e7eb',
+      borderRadius: '16px',
+      padding: '3.5rem',
+      boxShadow: '0 4px 24px rgba(0,0,0,0.06), 0 0 1px rgba(0,0,0,0.04)',
+      border: '1px solid rgba(0,0,0,0.04)',
       textAlign: 'center'
     },
     errorCard: {
@@ -336,102 +348,108 @@ export default function TriageApp() {
       position: 'relative'
     },
     micIcon: {
-      fontSize: '2.5rem',
-      color: '#1e7c89'
+      fontSize: '3rem',
+      color: '#0ea5e9'
     },
     warningBadge: {
       position: 'absolute',
       top: '-0.5rem',
       right: '-0.5rem',
-      background: '#f59e0b',
+      background: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)',
       color: 'white',
-      width: '1.75rem',
-      height: '1.75rem',
-      borderRadius: 0,
+      width: '2rem',
+      height: '2rem',
+      borderRadius: '50%',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      fontSize: '1.25rem'
+      fontSize: '1.25rem',
+      fontWeight: '700',
+      boxShadow: '0 3px 12px rgba(245, 158, 11, 0.4)'
     },
     errorTitle: {
-      fontSize: '1.5rem',
-      fontWeight: '600',
-      color: '#1f2937',
-      marginBottom: '1rem'
+      fontSize: '1.875rem',
+      fontWeight: '700',
+      color: '#0f172a',
+      marginBottom: '1rem',
+      letterSpacing: '-0.03em'
     },
     errorText: {
-      color: '#6b7280',
-      fontSize: '1rem',
-      lineHeight: 1.6,
-      marginBottom: '2rem',
-      maxWidth: '500px',
-      margin: '0 auto 2rem'
+      color: '#64748b',
+      fontSize: '1.0625rem',
+      lineHeight: 1.7,
+      marginBottom: '2.5rem',
+      maxWidth: '540px',
+      margin: '0 auto 2.5rem',
+      fontWeight: '400'
     },
     primaryButton: {
-      background: '#1e7c89',
+      background: 'linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%)',
       color: 'white',
-      padding: '1rem 2rem',
-      borderRadius: 0,
-      border: '2px solid #1e7c89',
-      fontSize: '1rem',
-      fontWeight: '600',
-      cursor: 'pointer',
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: '0.75rem',
-      minWidth: '200px',
-      justifyContent: 'center',
-      transition: 'all 0.15s',
-      marginBottom: '1rem',
-      textTransform: 'uppercase',
-      letterSpacing: '0.05em'
-    },
-    secondaryButton: {
-      background: 'white',
-      color: '#374151',
-      padding: '0.875rem 1.5rem',
-      borderRadius: 0,
-      border: '2px solid #e5e7eb',
+      padding: '1rem 2.25rem',
+      borderRadius: '10px',
+      border: 'none',
       fontSize: '0.9375rem',
       fontWeight: '600',
       cursor: 'pointer',
       display: 'inline-flex',
       alignItems: 'center',
-      gap: '0.5rem',
+      gap: '0.625rem',
+      minWidth: '200px',
       justifyContent: 'center',
-      transition: 'all 0.15s',
-      textTransform: 'uppercase',
-      letterSpacing: '0.05em'
+      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+      marginBottom: '1rem',
+      boxShadow: '0 4px 14px rgba(14, 165, 233, 0.3)',
+      letterSpacing: '-0.01em'
+    },
+    secondaryButton: {
+      background: 'white',
+      color: '#475569',
+      padding: '0.875rem 1.75rem',
+      borderRadius: '10px',
+      border: '1px solid #e2e8f0',
+      fontSize: '0.9375rem',
+      fontWeight: '600',
+      cursor: 'pointer',
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '0.625rem',
+      justifyContent: 'center',
+      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+      letterSpacing: '-0.01em'
     },
     divider: {
       display: 'flex',
       alignItems: 'center',
       gap: '1rem',
-      margin: '1.5rem 0',
-      color: '#9ca3af',
-      fontSize: '0.875rem',
-      textTransform: 'uppercase',
-      letterSpacing: '0.05em'
+      margin: '1.75rem 0',
+      color: '#94a3b8',
+      fontSize: '0.8125rem',
+      fontWeight: '500',
+      letterSpacing: '0.02em'
     },
     dividerLine: {
       flex: 1,
       height: '1px',
-      background: '#e5e7eb'
+      background: 'linear-gradient(90deg, transparent 0%, #e2e8f0 50%, transparent 100%)'
     },
     recordingView: {
       textAlign: 'center'
     },
     listeningTitle: {
-      fontSize: '2rem',
-      fontWeight: '600',
-      color: '#1f2937',
-      marginBottom: '0.5rem'
+      fontSize: '2.25rem',
+      fontWeight: '700',
+      color: '#0f172a',
+      marginBottom: '0.75rem',
+      letterSpacing: '-0.03em'
     },
     listeningSubtitle: {
-      color: '#6b7280',
-      fontSize: '1rem',
+      color: '#64748b',
+      fontSize: '1.0625rem',
       marginBottom: '3rem',
-      lineHeight: 1.6
+      lineHeight: 1.7,
+      fontWeight: '400'
     },
     waveformContainer: {
       margin: '2rem auto 3rem',
@@ -450,17 +468,20 @@ export default function TriageApp() {
       textAlign: 'center'
     },
     timerValue: {
-      fontSize: '3rem',
-      fontWeight: '600',
-      color: '#1e7c89',
-      fontVariantNumeric: 'tabular-nums'
+      fontSize: '3.5rem',
+      fontWeight: '700',
+      color: '#0ea5e9',
+      fontVariantNumeric: 'tabular-nums',
+      letterSpacing: '-0.02em',
+      textShadow: '0 2px 10px rgba(14, 165, 233, 0.15)'
     },
     timerLabel: {
-      fontSize: '0.75rem',
-      color: '#9ca3af',
+      fontSize: '0.6875rem',
+      color: '#94a3b8',
       textTransform: 'uppercase',
       letterSpacing: '0.1em',
-      marginTop: '0.25rem'
+      marginTop: '0.375rem',
+      fontWeight: '600'
     },
     recordingControls: {
       display: 'flex',
@@ -470,79 +491,90 @@ export default function TriageApp() {
     controlButton: (variant = 'default') => ({
       width: variant === 'stop' ? '5rem' : '4rem',
       height: variant === 'stop' ? '5rem' : '4rem',
-      borderRadius: 0,
-      border: variant === 'stop' ? '2px solid #1e7c89' : '2px solid #e5e7eb',
-      background: variant === 'stop' ? '#1e7c89' : 'white',
-      color: variant === 'stop' ? 'white' : '#6b7280',
+      borderRadius: variant === 'stop' ? '16px' : '12px',
+      border: 'none',
+      background: variant === 'stop' ? 'linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%)' : 'white',
+      color: variant === 'stop' ? 'white' : '#64748b',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       cursor: 'pointer',
       fontSize: '1.5rem',
-      transition: 'all 0.15s'
+      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+      boxShadow: variant === 'stop' ? '0 6px 20px rgba(14, 165, 233, 0.35)' : '0 2px 8px rgba(0,0,0,0.08)'
     }),
     loadingView: {
       textAlign: 'center',
       padding: '3rem 2rem'
     },
     loadingTitle: {
-      fontSize: '2rem',
-      fontWeight: '600',
-      color: '#1f2937',
-      marginBottom: '0.5rem'
+      fontSize: '2.25rem',
+      fontWeight: '700',
+      color: '#0f172a',
+      marginBottom: '0.75rem',
+      letterSpacing: '-0.03em'
     },
     loadingSubtitle: {
-      color: '#6b7280',
-      fontSize: '1rem',
-      marginBottom: '3rem'
+      color: '#64748b',
+      fontSize: '1.0625rem',
+      marginBottom: '3rem',
+      fontWeight: '400',
+      lineHeight: 1.6
     },
     progressSection: {
-      maxWidth: '600px',
+      maxWidth: '640px',
       margin: '0 auto',
-      background: '#f9fafb',
-      borderRadius: 0,
-      padding: '2rem',
-      border: '2px solid #e5e7eb'
+      background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+      borderRadius: '16px',
+      padding: '2.5rem',
+      border: '1px solid rgba(0,0,0,0.06)',
+      boxShadow: '0 2px 12px rgba(0,0,0,0.04)'
     },
     progressHeader: {
       marginBottom: '1.5rem'
     },
     statusLabel: {
-      fontSize: '0.75rem',
-      color: '#6b7280',
+      fontSize: '0.6875rem',
+      color: '#64748b',
       textTransform: 'uppercase',
-      letterSpacing: '0.05em',
-      marginBottom: '0.5rem'
+      letterSpacing: '0.08em',
+      marginBottom: '0.625rem',
+      fontWeight: '600'
     },
     statusRow: {
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: '1rem'
+      marginBottom: '1.25rem'
     },
     statusText: {
       fontSize: '1.125rem',
       fontWeight: '600',
-      color: '#1f2937'
+      color: '#0f172a',
+      letterSpacing: '-0.01em'
     },
     progressPercent: {
-      fontSize: '1.5rem',
+      fontSize: '2rem',
       fontWeight: '700',
-      color: '#1e7c89'
+      color: '#0ea5e9',
+      letterSpacing: '-0.02em',
+      textShadow: '0 1px 6px rgba(14, 165, 233, 0.15)'
     },
     progressBar: {
-      height: '0.5rem',
-      background: '#e5e7eb',
-      borderRadius: 0,
+      height: '10px',
+      background: 'rgba(226, 232, 240, 0.8)',
+      borderRadius: '20px',
       overflow: 'hidden',
-      marginBottom: '2rem',
-      border: '1px solid #d1d5db'
+      marginBottom: '2.5rem',
+      boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.08)'
     },
     progressFill: (progress) => ({
       height: '100%',
-      background: '#1e7c89',
+      background: 'linear-gradient(90deg, #0ea5e9 0%, #06b6d4 100%)',
       width: `${progress}%`,
-      transition: 'width 0.3s ease'
+      transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+      boxShadow: '0 0 12px rgba(14, 165, 233, 0.4)',
+      borderRadius: '20px'
     }),
     stepsList: {
       display: 'flex',
@@ -555,60 +587,66 @@ export default function TriageApp() {
       alignItems: 'flex-start'
     },
     stepIcon: (status) => ({
-      width: '2rem',
-      height: '2rem',
-      borderRadius: 0,
+      width: '2.5rem',
+      height: '2.5rem',
+      borderRadius: '12px',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
-      background: status === 'complete' ? '#10b981' : status === 'processing' ? '#1e7c89' : '#e5e7eb',
-      color: status === 'complete' || status === 'processing' ? 'white' : '#9ca3af',
-      border: '2px solid ' + (status === 'complete' ? '#10b981' : status === 'processing' ? '#1e7c89' : '#d1d5db')
+      background: status === 'complete' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : status === 'processing' ? 'linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%)' : '#e2e8f0',
+      color: status === 'complete' || status === 'processing' ? 'white' : '#94a3b8',
+      border: 'none',
+      fontSize: '1rem',
+      fontWeight: '700',
+      boxShadow: status === 'complete' ? '0 2px 8px rgba(16, 185, 129, 0.3)' : status === 'processing' ? '0 2px 8px rgba(14, 165, 233, 0.3)' : 'none',
+      transition: 'all 0.3s ease'
     }),
     stepContent: {
       flex: 1,
-      paddingTop: '0.25rem'
+      paddingTop: '0.375rem'
     },
     stepTitle: {
       fontSize: '1rem',
       fontWeight: '600',
-      color: '#1f2937',
-      marginBottom: '0.25rem'
+      color: '#0f172a',
+      marginBottom: '0.375rem',
+      letterSpacing: '-0.01em'
     },
     stepStatus: (status) => ({
-      fontSize: '0.875rem',
-      color: status === 'complete' ? '#10b981' : status === 'processing' ? '#3b82f6' : '#9ca3af'
+      fontSize: '0.8125rem',
+      color: status === 'complete' ? '#10b981' : status === 'processing' ? '#0ea5e9' : '#94a3b8',
+      fontWeight: '500'
     }),
     securityNote: {
       marginTop: '3rem',
-      padding: '1rem 1.25rem',
-      background: '#f0fdf4',
-      border: '2px solid #10b981',
-      borderRadius: 0,
-      borderLeft: '4px solid #10b981',
+      padding: '1.25rem 1.5rem',
+      background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+      border: '1px solid #86efac',
+      borderRadius: '12px',
       display: 'flex',
-      gap: '0.75rem',
-      fontSize: '0.875rem',
-      color: '#166534',
-      lineHeight: 1.6
+      gap: '1rem',
+      fontSize: '0.8125rem',
+      color: '#065f46',
+      lineHeight: 1.7,
+      fontWeight: '500',
+      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.1)'
     },
     newAssessmentButton: {
       position: 'fixed',
-      bottom: '2rem',
-      left: '280px',
-      background: '#1e7c89',
+      bottom: '2.5rem',
+      left: '300px',
+      background: 'linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%)',
       color: 'white',
-      padding: '1rem 2rem',
-      borderRadius: 0,
-      border: '2px solid #1e7c89',
-      fontSize: '1rem',
+      padding: '1rem 2.25rem',
+      borderRadius: '12px',
+      border: 'none',
+      fontSize: '0.9375rem',
       fontWeight: '600',
       cursor: 'pointer',
-      boxShadow: 'none',
-      transition: 'all 0.15s',
-      textTransform: 'uppercase',
-      letterSpacing: '0.05em'
+      boxShadow: '0 6px 24px rgba(14, 165, 233, 0.4)',
+      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+      letterSpacing: '-0.01em'
     }
   };
 
@@ -647,10 +685,12 @@ export default function TriageApp() {
           <div style={styles.syncLabel}>Sync Status</div>
           <div style={styles.syncIndicator}>
             <div style={{
-              width: '0.5rem',
-              height: '0.5rem',
-              borderRadius: 0,
-              background: '#10b981'
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: '#10b981',
+              boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.2)',
+              animation: 'pulse-dot 2s ease-in-out infinite'
             }} />
             <span>Local Cache Active</span>
           </div>
@@ -752,17 +792,18 @@ export default function TriageApp() {
 
                 <div style={styles.waveformContainer}>
                   {/* Simple waveform visualization */}
-                  <div style={{display: 'flex', alignItems: 'center', gap: '0.25rem', height: '100%'}}>
+                  <div style={{display: 'flex', alignItems: 'center', gap: '0.375rem', height: '100%'}}>
                     {[...Array(40)].map((_, i) => (
                       <div
                         key={i}
                         style={{
-                          width: '0.25rem',
+                          width: '4px',
                           height: `${20 + Math.random() * 80}%`,
-                          background: '#1e7c89',
-                          borderRadius: 0,
+                          background: 'linear-gradient(180deg, #0ea5e9 0%, #06b6d4 100%)',
+                          borderRadius: '4px',
                           animation: 'pulse 1s ease-in-out infinite',
-                          animationDelay: `${i * 0.05}s`
+                          animationDelay: `${i * 0.05}s`,
+                          boxShadow: '0 2px 6px rgba(14, 165, 233, 0.3)'
                         }}
                       />
                     ))}
@@ -810,8 +851,14 @@ export default function TriageApp() {
                 <button
                   style={styles.primaryButton}
                   onClick={startNewAssessment}
-                  onMouseOver={(e) => e.target.style.background = '#176b76'}
-                  onMouseOut={(e) => e.target.style.background = '#1e7c89'}
+                  onMouseOver={(e) => {
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 8px 24px rgba(14, 165, 233, 0.45)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.boxShadow = '0 4px 14px rgba(14, 165, 233, 0.3)';
+                  }}
                 >
                   <FaMicrophone />
                   Retry Voice Input
@@ -826,8 +873,18 @@ export default function TriageApp() {
                 <button
                   style={styles.secondaryButton}
                   onClick={() => setInputMode('text')}
-                  onMouseOver={(e) => e.target.style.background = '#e5e7eb'}
-                  onMouseOut={(e) => e.target.style.background = '#f3f4f6'}
+                  onMouseOver={(e) => {
+                    e.target.style.background = '#f8fafc';
+                    e.target.style.borderColor = '#cbd5e1';
+                    e.target.style.transform = 'translateY(-1px)';
+                    e.target.style.boxShadow = '0 3px 12px rgba(0,0,0,0.08)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.target.style.background = 'white';
+                    e.target.style.borderColor = '#e2e8f0';
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)';
+                  }}
                 >
                   <FaKeyboard />
                   Switch to Text Input
@@ -861,8 +918,18 @@ export default function TriageApp() {
                     <button
                       style={styles.secondaryButton}
                       onClick={() => setInputMode('text')}
-                      onMouseOver={(e) => e.target.style.background = '#e5e7eb'}
-                      onMouseOut={(e) => e.target.style.background = '#f3f4f6'}
+                      onMouseOver={(e) => {
+                        e.target.style.background = '#f8fafc';
+                        e.target.style.borderColor = '#cbd5e1';
+                        e.target.style.transform = 'translateY(-1px)';
+                        e.target.style.boxShadow = '0 3px 12px rgba(0,0,0,0.08)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.target.style.background = 'white';
+                        e.target.style.borderColor = '#e2e8f0';
+                        e.target.style.transform = 'translateY(0)';
+                        e.target.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)';
+                      }}
                     >
                       <FaKeyboard />
                       Switch to Text Input
@@ -879,8 +946,18 @@ export default function TriageApp() {
                     <button
                       style={styles.secondaryButton}
                       onClick={() => setInputMode('voice')}
-                      onMouseOver={(e) => e.target.style.background = '#e5e7eb'}
-                      onMouseOut={(e) => e.target.style.background = '#f3f4f6'}
+                      onMouseOver={(e) => {
+                        e.target.style.background = '#f8fafc';
+                        e.target.style.borderColor = '#cbd5e1';
+                        e.target.style.transform = 'translateY(-1px)';
+                        e.target.style.boxShadow = '0 3px 12px rgba(0,0,0,0.08)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.target.style.background = 'white';
+                        e.target.style.borderColor = '#e2e8f0';
+                        e.target.style.transform = 'translateY(0)';
+                        e.target.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)';
+                      }}
                     >
                       <FaMicrophone />
                       Switch to Voice Input
@@ -906,25 +983,31 @@ export default function TriageApp() {
           style={styles.newAssessmentButton}
           onClick={startNewAssessment}
           onMouseOver={(e) => {
-            e.target.style.background = '#176b76';
-            e.target.style.transform = 'translateY(-2px)';
-            e.target.style.boxShadow = '0 6px 20px rgba(30, 124, 137, 0.4)';
+            e.target.style.transform = 'translateY(-3px)';
+            e.target.style.boxShadow = '0 10px 32px rgba(14, 165, 233, 0.5)';
           }}
           onMouseOut={(e) => {
-            e.target.style.background = '#1e7c89';
             e.target.style.transform = 'translateY(0)';
-            e.target.style.boxShadow = '0 4px 12px rgba(30, 124, 137, 0.3)';
+            e.target.style.boxShadow = '0 6px 24px rgba(14, 165, 233, 0.4)';
           }}
         >
           New Assessment
         </button>
       )}
 
-      {/* Pulse animation for waveform */}
+      {/* Animations */}
       <style jsx global>{`
         @keyframes pulse {
-          0%, 100% { opacity: 0.3; transform: scaleY(0.5); }
+          0%, 100% { opacity: 0.4; transform: scaleY(0.5); }
           50% { opacity: 1; transform: scaleY(1); }
+        }
+        @keyframes pulse-dot {
+          0%, 100% {
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+          }
+          50% {
+            box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.1);
+          }
         }
       `}</style>
     </div>
