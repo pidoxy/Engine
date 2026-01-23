@@ -190,14 +190,14 @@ export default function TriageApp() {
     sidebar: {
       width: '240px',
       background: 'white',
-      borderRight: '1px solid #e5e7eb',
+      borderRight: '2px solid #e5e7eb',
       padding: '2rem 0',
       display: 'flex',
       flexDirection: 'column'
     },
     logo: {
       padding: '0 1.5rem 2rem',
-      borderBottom: '1px solid #e5e7eb',
+      borderBottom: '2px solid #e5e7eb',
       marginBottom: '2rem'
     },
     logoTitle: {
@@ -214,38 +214,39 @@ export default function TriageApp() {
       color: '#6b7280',
       margin: '0.25rem 0 0',
       textTransform: 'uppercase',
-      letterSpacing: '0.05em'
+      letterSpacing: '0.1em'
     },
     nav: {
       flex: 1,
-      padding: '0 0.75rem'
+      padding: '0 1rem'
     },
     navItem: (active) => ({
       display: 'flex',
       alignItems: 'center',
       gap: '0.75rem',
       padding: '0.875rem 1rem',
-      margin: '0.25rem 0',
-      borderRadius: '0.5rem',
-      background: active ? '#e6f4f6' : 'transparent',
-      color: active ? '#1e7c89' : '#6b7280',
+      margin: '0 0 0.125rem 0',
+      borderRadius: 0,
+      background: active ? '#1e7c89' : 'transparent',
+      color: active ? 'white' : '#6b7280',
       fontWeight: active ? '600' : '500',
       fontSize: '0.9375rem',
       cursor: 'pointer',
       border: 'none',
+      borderLeft: active ? '4px solid #0d4f57' : '4px solid transparent',
       width: '100%',
       textAlign: 'left',
-      transition: 'all 0.2s'
+      transition: 'all 0.15s'
     }),
     syncStatus: {
       padding: '1.5rem',
-      borderTop: '1px solid #e5e7eb'
+      borderTop: '2px solid #e5e7eb'
     },
     syncLabel: {
       fontSize: '0.75rem',
       color: '#6b7280',
       textTransform: 'uppercase',
-      letterSpacing: '0.05em',
+      letterSpacing: '0.1em',
       marginBottom: '0.5rem'
     },
     syncIndicator: {
@@ -263,7 +264,7 @@ export default function TriageApp() {
     },
     header: {
       background: 'white',
-      borderBottom: '1px solid #e5e7eb',
+      borderBottom: '2px solid #e5e7eb',
       padding: '1rem 2rem',
       display: 'flex',
       justifyContent: 'space-between',
@@ -289,13 +290,14 @@ export default function TriageApp() {
     },
     infoBar: {
       background: '#e6f4f6',
-      border: '1px solid #b8dce1',
-      borderRadius: '0.75rem',
+      border: '2px solid #1e7c89',
+      borderRadius: 0,
       padding: '1rem 1.25rem',
       marginBottom: '2rem',
       display: 'flex',
       alignItems: 'center',
-      gap: '0.75rem'
+      gap: '0.75rem',
+      borderLeft: '4px solid #1e7c89'
     },
     infoIcon: {
       color: '#1e7c89',
@@ -317,10 +319,10 @@ export default function TriageApp() {
     },
     card: {
       background: 'white',
-      borderRadius: '1rem',
+      borderRadius: 0,
       padding: '3rem',
-      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-      border: '1px solid #e5e7eb',
+      boxShadow: 'none',
+      border: '2px solid #e5e7eb',
       textAlign: 'center'
     },
     errorCard: {
@@ -345,7 +347,7 @@ export default function TriageApp() {
       color: 'white',
       width: '1.75rem',
       height: '1.75rem',
-      borderRadius: '50%',
+      borderRadius: 0,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -369,8 +371,8 @@ export default function TriageApp() {
       background: '#1e7c89',
       color: 'white',
       padding: '1rem 2rem',
-      borderRadius: '0.75rem',
-      border: 'none',
+      borderRadius: 0,
+      border: '2px solid #1e7c89',
       fontSize: '1rem',
       fontWeight: '600',
       cursor: 'pointer',
@@ -379,15 +381,17 @@ export default function TriageApp() {
       gap: '0.75rem',
       minWidth: '200px',
       justifyContent: 'center',
-      transition: 'all 0.2s',
-      marginBottom: '1rem'
+      transition: 'all 0.15s',
+      marginBottom: '1rem',
+      textTransform: 'uppercase',
+      letterSpacing: '0.05em'
     },
     secondaryButton: {
-      background: '#f3f4f6',
+      background: 'white',
       color: '#374151',
       padding: '0.875rem 1.5rem',
-      borderRadius: '0.75rem',
-      border: '1px solid #e5e7eb',
+      borderRadius: 0,
+      border: '2px solid #e5e7eb',
       fontSize: '0.9375rem',
       fontWeight: '600',
       cursor: 'pointer',
@@ -395,7 +399,9 @@ export default function TriageApp() {
       alignItems: 'center',
       gap: '0.5rem',
       justifyContent: 'center',
-      transition: 'all 0.2s'
+      transition: 'all 0.15s',
+      textTransform: 'uppercase',
+      letterSpacing: '0.05em'
     },
     divider: {
       display: 'flex',
@@ -464,8 +470,8 @@ export default function TriageApp() {
     controlButton: (variant = 'default') => ({
       width: variant === 'stop' ? '5rem' : '4rem',
       height: variant === 'stop' ? '5rem' : '4rem',
-      borderRadius: '50%',
-      border: variant === 'stop' ? 'none' : '2px solid #e5e7eb',
+      borderRadius: 0,
+      border: variant === 'stop' ? '2px solid #1e7c89' : '2px solid #e5e7eb',
       background: variant === 'stop' ? '#1e7c89' : 'white',
       color: variant === 'stop' ? 'white' : '#6b7280',
       display: 'flex',
@@ -473,7 +479,7 @@ export default function TriageApp() {
       justifyContent: 'center',
       cursor: 'pointer',
       fontSize: '1.5rem',
-      transition: 'all 0.2s'
+      transition: 'all 0.15s'
     }),
     loadingView: {
       textAlign: 'center',
@@ -494,9 +500,9 @@ export default function TriageApp() {
       maxWidth: '600px',
       margin: '0 auto',
       background: '#f9fafb',
-      borderRadius: '1rem',
+      borderRadius: 0,
       padding: '2rem',
-      border: '1px solid #e5e7eb'
+      border: '2px solid #e5e7eb'
     },
     progressHeader: {
       marginBottom: '1.5rem'
@@ -525,15 +531,16 @@ export default function TriageApp() {
       color: '#1e7c89'
     },
     progressBar: {
-      height: '0.75rem',
+      height: '0.5rem',
       background: '#e5e7eb',
-      borderRadius: '9999px',
+      borderRadius: 0,
       overflow: 'hidden',
-      marginBottom: '2rem'
+      marginBottom: '2rem',
+      border: '1px solid #d1d5db'
     },
     progressFill: (progress) => ({
       height: '100%',
-      background: 'linear-gradient(90deg, #1e7c89, #2a9d8f)',
+      background: '#1e7c89',
       width: `${progress}%`,
       transition: 'width 0.3s ease'
     }),
@@ -550,13 +557,14 @@ export default function TriageApp() {
     stepIcon: (status) => ({
       width: '2rem',
       height: '2rem',
-      borderRadius: '50%',
+      borderRadius: 0,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
-      background: status === 'complete' ? '#10b981' : status === 'processing' ? '#3b82f6' : '#e5e7eb',
-      color: status === 'complete' || status === 'processing' ? 'white' : '#9ca3af'
+      background: status === 'complete' ? '#10b981' : status === 'processing' ? '#1e7c89' : '#e5e7eb',
+      color: status === 'complete' || status === 'processing' ? 'white' : '#9ca3af',
+      border: '2px solid ' + (status === 'complete' ? '#10b981' : status === 'processing' ? '#1e7c89' : '#d1d5db')
     }),
     stepContent: {
       flex: 1,
@@ -576,8 +584,9 @@ export default function TriageApp() {
       marginTop: '3rem',
       padding: '1rem 1.25rem',
       background: '#f0fdf4',
-      border: '1px solid #bbf7d0',
-      borderRadius: '0.5rem',
+      border: '2px solid #10b981',
+      borderRadius: 0,
+      borderLeft: '4px solid #10b981',
       display: 'flex',
       gap: '0.75rem',
       fontSize: '0.875rem',
@@ -591,13 +600,15 @@ export default function TriageApp() {
       background: '#1e7c89',
       color: 'white',
       padding: '1rem 2rem',
-      borderRadius: '0.75rem',
-      border: 'none',
+      borderRadius: 0,
+      border: '2px solid #1e7c89',
       fontSize: '1rem',
       fontWeight: '600',
       cursor: 'pointer',
-      boxShadow: '0 4px 12px rgba(30, 124, 137, 0.3)',
-      transition: 'all 0.2s'
+      boxShadow: 'none',
+      transition: 'all 0.15s',
+      textTransform: 'uppercase',
+      letterSpacing: '0.05em'
     }
   };
 
@@ -638,7 +649,7 @@ export default function TriageApp() {
             <div style={{
               width: '0.5rem',
               height: '0.5rem',
-              borderRadius: '50%',
+              borderRadius: 0,
               background: '#10b981'
             }} />
             <span>Local Cache Active</span>
@@ -749,7 +760,7 @@ export default function TriageApp() {
                           width: '0.25rem',
                           height: `${20 + Math.random() * 80}%`,
                           background: '#1e7c89',
-                          borderRadius: '9999px',
+                          borderRadius: 0,
                           animation: 'pulse 1s ease-in-out infinite',
                           animationDelay: `${i * 0.05}s`
                         }}
