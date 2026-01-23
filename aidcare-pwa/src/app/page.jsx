@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useCallback, useRef } from 'react';
-import { FaStethoscope, FaMicrophone, FaKeyboard, FaUserMd, FaHistory, FaTimes, FaBars } from 'react-icons/fa';
+import { FaStethoscope, FaMicrophone, FaKeyboard, FaHistory, FaTimes } from 'react-icons/fa';
 import { MdLocalHospital, MdHealthAndSafety } from 'react-icons/md';
 import AudioRecorder from './components/AudioRecorder';
 import TriageForm from './components/triage/TriageForm';
@@ -9,9 +9,8 @@ import TriageResults from './components/triage/TriageResults';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorMessage from './components/ErrorMessage';
 
-export default function UnifiedDashboard() {
-  // Mode state
-  const [mode, setMode] = useState('triage'); // 'triage' or 'clinical'
+export default function TriageDashboard() {
+  // Input mode state
   const [inputMode, setInputMode] = useState('voice'); // 'voice' or 'text'
 
   // Processing state
@@ -64,11 +63,7 @@ export default function UnifiedDashboard() {
     formData.append('audio_file', blobToProcess, `recording_${Date.now()}.wav`);
 
     try {
-      const endpoint = mode === 'triage'
-        ? `${FASTAPI_URL}/triage/process_audio/`
-        : `${FASTAPI_URL}/clinical_support/process_consultation/`;
-
-      const response = await fetch(endpoint, {
+      const response = await fetch(`${FASTAPI_URL}/triage/process_audio/`, {
         method: 'POST',
         body: formData,
       });
@@ -93,7 +88,7 @@ export default function UnifiedDashboard() {
       setIsLoading(false);
       setLoadingComplete(false);
     }
-  }, [mode, FASTAPI_URL]);
+  }, [FASTAPI_URL]);
 
   // Process text
   const processText = useCallback(async (textData) => {
@@ -107,11 +102,7 @@ export default function UnifiedDashboard() {
     setErrorMessage('');
 
     try {
-      const endpoint = mode === 'triage'
-        ? `${FASTAPI_URL}/triage/process_text/`
-        : `${FASTAPI_URL}/clinical_support/process_consultation/`;
-
-      const response = await fetch(endpoint, {
+      const response = await fetch(`${FASTAPI_URL}/triage/process_text/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transcript_text: textData.symptoms }),
@@ -135,7 +126,7 @@ export default function UnifiedDashboard() {
       setIsLoading(false);
       setLoadingComplete(false);
     }
-  }, [mode, FASTAPI_URL]);
+  }, [FASTAPI_URL]);
 
   // Auto-process audio when blob is ready
   React.useEffect(() => {
@@ -149,7 +140,6 @@ export default function UnifiedDashboard() {
     const historyItem = {
       id: Date.now(),
       timestamp: new Date().toISOString(),
-      mode: mode,
       result: resultData
     };
     setSessionHistory(prev => [historyItem, ...prev].slice(0, 10)); // Keep last 10
@@ -163,14 +153,6 @@ export default function UnifiedDashboard() {
     setIsRecording(false);
     setLoadingComplete(false);
     processedBlobRef.current = null;
-  };
-
-  // Switch mode
-  const switchMode = (newMode) => {
-    if (newMode !== mode) {
-      setMode(newMode);
-      startNewSession();
-    }
   };
 
   const styles = {
@@ -256,32 +238,25 @@ export default function UnifiedDashboard() {
     mainContent: {
       minWidth: 0
     },
-    modeSelector: {
-      display: 'flex',
-      gap: '1rem',
-      marginBottom: '2rem',
-      background: 'white',
-      padding: '0.5rem',
-      borderRadius: '1rem',
-      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
-      border: '1px solid #e5e7eb'
+    pageHeader: {
+      textAlign: 'center',
+      marginBottom: '2rem'
     },
-    modeTab: (active) => ({
-      flex: 1,
-      padding: '1rem',
-      borderRadius: '0.75rem',
-      border: 'none',
-      background: active ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'transparent',
-      color: active ? 'white' : '#6b7280',
-      fontWeight: '600',
-      fontSize: '1rem',
-      cursor: 'pointer',
+    pageTitle: {
+      fontSize: '2rem',
+      fontWeight: 'bold',
+      color: '#1f2937',
+      margin: '0 0 0.5rem 0',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: '0.5rem',
-      transition: 'all 0.3s ease'
-    }),
+      gap: '0.75rem'
+    },
+    pageSubtitle: {
+      fontSize: '1rem',
+      color: '#6b7280',
+      margin: 0
+    },
     inputSection: {
       background: 'white',
       borderRadius: '1rem',
@@ -419,27 +394,15 @@ export default function UnifiedDashboard() {
       <div style={styles.mainLayout}>
         {/* Main Content */}
         <div style={styles.mainContent}>
-          {/* Mode Selector */}
-          <div style={styles.modeSelector}>
-            <button
-              onClick={() => switchMode('triage')}
-              style={styles.modeTab(mode === 'triage')}
-              onMouseOver={(e) => mode !== 'triage' && (e.target.style.background = '#f9fafb')}
-              onMouseOut={(e) => mode !== 'triage' && (e.target.style.background = 'transparent')}
-            >
-              <MdLocalHospital size={20} />
-              <span>CHW Triage</span>
-            </button>
-
-            <button
-              onClick={() => switchMode('clinical')}
-              style={styles.modeTab(mode === 'clinical')}
-              onMouseOver={(e) => mode !== 'clinical' && (e.target.style.background = '#f9fafb')}
-              onMouseOut={(e) => mode !== 'clinical' && (e.target.style.background = 'transparent')}
-            >
-              <FaUserMd size={20} />
-              <span>Clinical Support</span>
-            </button>
+          {/* Page Header */}
+          <div style={styles.pageHeader}>
+            <h1 style={styles.pageTitle}>
+              <MdLocalHospital size={32} />
+              <span>AI Triage Assistant</span>
+            </h1>
+            <p style={styles.pageSubtitle}>
+              Describe patient symptoms using voice or text for instant triage assessment
+            </p>
           </div>
 
           {/* Input Section */}
@@ -569,10 +532,7 @@ export default function UnifiedDashboard() {
                 <div
                   key={item.id}
                   style={styles.historyItem}
-                  onClick={() => {
-                    setResult(item.result);
-                    setMode(item.mode);
-                  }}
+                  onClick={() => setResult(item.result)}
                   onMouseOver={(e) => {
                     e.currentTarget.style.background = '#eff6ff';
                     e.currentTarget.style.borderColor = '#3b82f6';
@@ -582,14 +542,20 @@ export default function UnifiedDashboard() {
                     e.currentTarget.style.borderColor = 'transparent';
                   }}
                 >
-                  <div style={{fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem'}}>
-                    {new Date(item.timestamp).toLocaleString()}
+                  <div style={{fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.5rem'}}>
+                    {new Date(item.timestamp).toLocaleTimeString()} • {new Date(item.timestamp).toLocaleDateString()}
                   </div>
-                  <div style={{fontSize: '0.875rem', fontWeight: '500', color: '#1f2937'}}>
-                    {item.mode === 'triage' ? '🏥 Triage' : '👨‍⚕️ Clinical'}
+                  <div style={{
+                    fontSize: '0.875rem',
+                    fontWeight: '600',
+                    color: item.result?.triage_level === 'URGENT' ? '#dc2626' :
+                           item.result?.triage_level === 'SEMI-URGENT' ? '#f59e0b' : '#10b981',
+                    marginBottom: '0.25rem'
+                  }}>
+                    {item.result?.triage_level || 'Completed'}
                   </div>
-                  <div style={{fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem'}}>
-                    {item.result?.triage_level || item.result?.urgency_level || 'Completed'}
+                  <div style={{fontSize: '0.75rem', color: '#6b7280', lineHeight: 1.4}}>
+                    {item.result?.symptoms_summary?.substring(0, 60)}...
                   </div>
                 </div>
               ))
