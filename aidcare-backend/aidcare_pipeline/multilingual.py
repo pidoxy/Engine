@@ -1,16 +1,16 @@
 # aidcare_pipeline/multilingual.py
-# Handles multilingual Gemini conversations for the Naija language demo
-# UNDP Nigeria IC × Timbuktu Initiative — International Mother Language Day
+# Handles multilingual conversations for the Naija language demo
+# UNDP Nigeria IC x Timbuktu Initiative — International Mother Language Day
+# Uses OpenAI GPT-4o for richer multilingual understanding vs Gemini
 
-import google.generativeai as genai
 import os
 import time
 
-GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL_RECOMMEND", "gemini-2.0-flash-exp")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+OPENAI_MODEL_MULTILINGUAL = os.getenv("OPENAI_MODEL_MULTILINGUAL", "gpt-4o")
 
 # ---------------------------------------------------------------------------
-# Language system instructions — forces Gemini to respond in the target language
+# Language system instructions — forces GPT-4o to respond in target language
 # ---------------------------------------------------------------------------
 
 LANGUAGE_SYSTEM_INSTRUCTIONS = {
@@ -23,23 +23,23 @@ LANGUAGE_SYSTEM_INSTRUCTIONS = {
     'ha': (
         "Kai ne mataimakin lafiya mai tausayi don Masu Kula da Lafiya (CHW) a Najeriya. "
         "Aikinka shine tattara bayanan alamun rashin lafiya ta hanyar tattaunawa mai kyau. "
-        "Ka tambayi TAMBAYA ƊAYA mai mahimmanci a lokaci guda don fahimtar halin mai haƙuri. "
+        "Ka tambayi TAMBAYA DAYA mai mahimmanci a lokaci guda don fahimtar halin mai hakuri. "
         "Ka amsa DA HAUSA KAWAI a kowane hali. Kada ka amsa da Turanci ko wani harshe. "
-        "[MUHIMMI: Ka amsa da Hausa kawai. Kar a taɓa canzawa zuwa Turanci.]"
+        "[MUHIMMI: Ka amsa da Hausa kawai. Kar a tabawa zuwa Turanci.]"
     ),
     'yo': (
-        "Ìwọ ni olùrànlọ́wọ́ ìlera tó ní ọkàn-àánú fún Àwọn Òṣìṣẹ́ Ìlera Àdúgbò (CHW) ní Nàìjíríà. "
-        "Iṣẹ́ rẹ ni láti gba àlàyé nípa àwọn àmì àìsàn nípa ọ̀nà ìfọ̀rọ̀wérọ̀ tó dára. "
-        "Béèrè ÌBÉÈRÈ KAN tó ṣe pàtàkì lóòkan láti lóye ipò alaisan. "
-        "Fèsì NÍ YORÙBÁ NÌKAN lórí gbogbo àkókò. Má fèsì ní èdè Gẹ̀ẹ́sì tàbí èdè mìíràn. "
-        "[PÀTÀKÌ: Fèsì ní Yorùbá nìkan. Má yí padà sí Gẹ̀ẹ́sì.]"
+        "Iwo ni oluranloworun ilera to ni okan-aanu fun Awon Osise Ilera Adugbo (CHW) ni Naijiiria. "
+        "Isejob re ni lati gba alaaye nipa awon ami aisaan nipa ona iforowero to dara. "
+        "Beere IBEERE KAN to se pataki lookan lati loye ipo alaisan. "
+        "Fesi NI YORUBA NIKAN lori gbogbo akoko. Ma fesi ni ede Geesi tabi ede miiiran. "
+        "[PATAKI: Fesi ni Yoruba nikan. Ma yi pada si Geesi.]"
     ),
     'ig': (
-        "Ị bụ onye enyemaka ahụike nwere obi ọma maka ndị Ọrụ Ahụike Obodo (CHW) na Naịjịrịa. "
-        "Ọrụ gị bụ ịnakọta ozi gbasara ihe ọ bụ na-eme onye ọrịa site na mkparịta ụka dị mma. "
-        "Jụọ AJỤJỤ OTU n'otu dị mkpa n'oge ọ bụla iji ghọta ọnọdụ onye ọrịa. "
-        "Zaghachi N'IGBO NAANỊ n'oge ọ bụla. Ejikwala asusu Igbo na Bekee ma ọ bụ asụsụ ọzọ. "
-        "[MKPA: Zaghachi n'Igbo naanị. Ghara ịgbanwe na Bekee.]"
+        "I bu onye enyemaka ahuike nwere obi oma maka ndi Oru Ahuike Obodo (CHW) na Naijiiria. "
+        "Oru gi bu inaakota ozi gbasara ihe o bu na-eme onye oria site na mkparita uka di mma. "
+        "Juoo AJUJU OTU n'otu di mkpa n'oge o bula iji ghota onodu onye oria. "
+        "Zaghachi N'IGBO NAANYI n'oge o bula. Ejikwala asusu Igbo na Bekee ma o bu asusu ozoo. "
+        "[MKPA: Zaghachi n'Igbo naanyi. Ghara igbanwe na Bekee.]"
     ),
     'pcm': (
         "You be kind health assistant for Community Health Workers (CHW) for Nigeria. "
@@ -51,24 +51,25 @@ LANGUAGE_SYSTEM_INSTRUCTIONS = {
 }
 
 # Language instructions injected into triage recommendation for translated output
+# Imported by recommendation.py
 LANGUAGE_TRIAGE_SYSTEM_INSTRUCTIONS = {
     'ha': (
         "Kai ne mataimakin kiwon lafiya na CHW na Najeriya. "
-        "Rubuta DUKAN ƙimar JSON da Hausa. Ajiye maɓallan JSON a Turanci. "
-        "Misali: 'summary_of_findings' maɓalli ya kasance a Turanci, amma ƙimar ta kasance Hausa. "
-        "[MUHIMMI: Rubuta dukan ƙimar da Hausa kawai.]"
+        "Rubuta DUKAN kimar JSON da Hausa. Ajiye maballan JSON a Turanci. "
+        "Misali: 'summary_of_findings' maballi ya kasance a Turanci, amma kimar ta kasance Hausa. "
+        "[MUHIMMI: Rubuta dukan kimar da Hausa kawai.]"
     ),
     'yo': (
-        "Ìwọ ni olùrànlọ́wọ́ ìlera CHW ní Nàìjíríà. "
-        "Kọ GBOGBO ìyebíye JSON ní Yorùbá. Ẹ jẹ́ kí àwọn bọ́tìnì JSON wà ní Gẹ̀ẹ́sì. "
-        "Àpẹẹrẹ: bọ́tìnì 'summary_of_findings' wà ní Gẹ̀ẹ́sì, ṣùgbọ́n ìyebíye rẹ̀ wà ní Yorùbá. "
-        "[PÀTÀKÌ: Kọ gbogbo ìyebíye ní Yorùbá nìkan.]"
+        "Iwo ni oluranloworun ilera CHW ni Naijiiria. "
+        "Ko GBOGBO iyebiiye JSON ni Yoruba. E je ki awon botini JSON wa ni Geesi. "
+        "Apeeere: botini 'summary_of_findings' wa ni Geesi, sugbon iyebiiye re wa ni Yoruba. "
+        "[PATAKI: Ko gbogbo iyebiiye ni Yoruba nikan.]"
     ),
     'ig': (
-        "Ị bụ onye enyemaka ahụike CHW na Naịjịrịa. "
-        "Dee ỤKPỤRỤ JSON niile n'Igbo. Hazie igodo JSON na Bekee. "
-        "Ihe atụ: igodo 'summary_of_findings' nọ na Bekee, mana ụkpụrụ ya nọ n'Igbo. "
-        "[MKPA: Dee ụkpụrụ niile n'Igbo naanị.]"
+        "I bu onye enyemaka ahuike CHW na Naijiiria. "
+        "Dee UKPURU JSON niile n'Igbo. Hazie igodo JSON na Bekee. "
+        "Ihe atu: igodo 'summary_of_findings' no na Bekee, mana ukpuru ya no n'Igbo. "
+        "[MKPA: Dee ukpuru niile n'Igbo naanyi.]"
     ),
     'pcm': (
         "You be CHW health assistant for Nigeria. "
@@ -92,11 +93,11 @@ URGENT_KEYWORDS = [
     "ciwon zuciya", "zuciya tana ciwo", "ba zan iya numfashi ba",
     "matsalar numfashi", "farfadiya", "zubar jini mai yawa",
     # Yoruba
-    "àyà ń fọ", "mí kò le jáde", "ìjàpọ̀ ọkàn", "ẹ̀jẹ̀ ń jade púpọ̀",
-    "wọ́n kò mọ ara wọn", "kò lè mí",
+    "aya n fo", "mi ko le jade", "ijapoo okan", "eje n jade pupo",
+    "won ko mo ara won", "ko le mi",
     # Igbo
-    "obi na-awa m", "m enweghị ike iku ume", "ọbara na-arị ọbara",
-    "o dara n'ala", "ọ dara n'ihu",
+    "obi na-awa m", "m enweghị ike iku ume", "obara na-ari obara",
+    "o dara n'ala", "o dara n'ihu",
     # Pidgin
     "chest dey pain", "i no fit breathe", "heart dey do me", "i dey bleed sotey",
     "e fall down", "e no dey conscious", "blood plenty dey commot",
@@ -107,7 +108,7 @@ def _language_name(code: str) -> str:
     names = {
         'en': 'English',
         'ha': 'Hausa',
-        'yo': 'Yorùbá',
+        'yo': 'Yoruba',
         'ig': 'Igbo',
         'pcm': 'Nigerian Pidgin'
     }
@@ -120,7 +121,8 @@ def generate_multilingual_response(
     language: str = 'en'
 ) -> dict:
     """
-    Generate a conversational follow-up response in the specified Nigerian language.
+    Generate a conversational follow-up response in the specified Nigerian language
+    using GPT-4o for superior multilingual understanding.
 
     Args:
         conversation_history: Full conversation so far (PATIENT:/YOU: format)
@@ -130,24 +132,13 @@ def generate_multilingual_response(
     Returns:
         dict with keys: response, language, conversation_complete, should_auto_complete
     """
-    if not GOOGLE_API_KEY:
+    if not OPENAI_API_KEY:
         return {
             "response": "Service configuration error. Please try again.",
             "language": language,
             "conversation_complete": False,
             "should_auto_complete": False,
-            "error": "Missing GOOGLE_API_KEY"
-        }
-
-    try:
-        genai.configure(api_key=GOOGLE_API_KEY)
-    except Exception as e:
-        return {
-            "response": "Service error. Please try again.",
-            "language": language,
-            "conversation_complete": False,
-            "should_auto_complete": False,
-            "error": str(e)
+            "error": "Missing OPENAI_API_KEY"
         }
 
     system_instruction = LANGUAGE_SYSTEM_INSTRUCTIONS.get(
@@ -163,12 +154,14 @@ def generate_multilingual_response(
 
     lang_name = _language_name(language)
 
-    # Build the conversation prompt
     history_section = f"Conversation so far:\n{conversation_history}\n\n" if conversation_history.strip() else ""
 
     urgency_note = ""
     if is_urgent:
-        urgency_note = f"\n\nUrgency detected. Advise the patient to seek immediate care. Keep response brief and in {lang_name}."
+        urgency_note = (
+            f"\n\nUrgency detected. Advise the patient to seek immediate care. "
+            f"Keep response brief and in {lang_name}."
+        )
 
     auto_complete_note = ""
     if exchange_count >= 3:
@@ -184,7 +177,7 @@ def generate_multilingual_response(
             f"Add [COMPLETE_ASSESSMENT] at the very end (hidden from patient)."
         )
 
-    prompt = (
+    user_prompt = (
         f"{history_section}"
         f"Patient's latest message:\n{latest_message}\n\n"
         f"Exchange count: {exchange_count}\n\n"
@@ -200,26 +193,23 @@ def generate_multilingual_response(
     max_retries = 2
     for attempt in range(max_retries):
         try:
-            model = genai.GenerativeModel(
-                GEMINI_MODEL,
-                system_instruction=system_instruction
-            )
-            response = model.generate_content(
-                prompt,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0.75,
-                    max_output_tokens=350,
-                )
+            from openai import OpenAI
+            client = OpenAI(api_key=OPENAI_API_KEY)
+
+            response = client.chat.completions.create(
+                model=OPENAI_MODEL_MULTILINGUAL,
+                messages=[
+                    {"role": "system", "content": system_instruction},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.75,
+                max_tokens=350,
             )
 
-            ai_response = ""
-            if response.parts:
-                ai_response = response.parts[0].text.strip()
-            elif hasattr(response, 'text') and response.text:
-                ai_response = response.text.strip()
+            ai_response = response.choices[0].message.content.strip()
 
             should_complete = "[COMPLETE_ASSESSMENT]" in ai_response
-            # Clean the hidden marker from the response shown to patients
+            # Remove hidden marker before sending to frontend
             ai_response = ai_response.replace("[COMPLETE_ASSESSMENT]", "").strip()
 
             # Force auto-complete after 5 exchanges regardless
@@ -234,15 +224,15 @@ def generate_multilingual_response(
             }
 
         except Exception as e:
-            print(f"Multilingual Gemini error (attempt {attempt + 1}): {e}")
+            print(f"GPT-4o multilingual error (attempt {attempt + 1}): {e}")
             if attempt < max_retries - 1:
                 time.sleep(2 * (attempt + 1))
             else:
-                # Fallback greeting in the target language
+                # Language-appropriate fallback
                 fallbacks = {
-                    'ha': "Ka ci gaba da faɗa mini alamun rashin lafiyar ka.",
-                    'yo': "Jọ̀wọ́ tẹ̀síwájú sọ fún mi nípa àwọn àmì àìsàn rẹ.",
-                    'ig': "Biko gwa m ọzọ maka ihe ọ bụ na-eme gị.",
+                    'ha': "Ka ci gaba da fada mini alamun rashin lafiyar ka.",
+                    'yo': "Jowo tesiwaju so fun mi nipa awon ami aisaan re.",
+                    'ig': "Biko gwa m ozoo maka ihe o bu na-eme gi.",
                     'pcm': "Abeg tell me more about wetin dey do you.",
                     'en': "Please tell me more about your symptoms.",
                 }

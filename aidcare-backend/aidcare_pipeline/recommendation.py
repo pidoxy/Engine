@@ -1,14 +1,16 @@
 # aidcare_pipeline/recommendation.py
-import google.generativeai as genai
+# Triage recommendation generation via OpenAI GPT-4o-mini with native JSON mode
+# Replaces Gemini — better JSON compliance, faster, same multilingual support
+# Same function signature kept for full backward compatibility
+
 import json
 import os
 import time
 from .rate_limiter import cached_gemini_call, RateLimitExceeded
 
-GEMINI_MODEL_NAME_RECOMMEND = os.getenv("GEMINI_MODEL_RECOMMEND", "gemini-3-flash-preview")
-GOOGLE_API_KEY_RECOMMEND = os.environ.get("GOOGLE_API_KEY")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+OPENAI_MODEL_RECOMMEND = os.getenv("OPENAI_MODEL_RECOMMEND", "gpt-4o-mini")
 
-_MODERN_GEMINI_PREFIXES = ("gemini-1.5", "gemini-2", "gemini-3")
 
 @cached_gemini_call(ttl=3600, rate_limit_id="recommendation")
 def generate_triage_recommendation(
@@ -18,26 +20,46 @@ def generate_triage_recommendation(
     valyu_enrichment: dict = None,
     language: str = "en"
 ) -> dict:
-    if not GOOGLE_API_KEY_RECOMMEND:
-        # In a real app, you might want to raise an exception or handle this more gracefully
-        print("ERROR: GOOGLE_API_KEY not found in environment for recommendation generation.")
-        return {
-            "error": "Configuration error: Missing Google API Key for recommendations."
-        }
+    """
+    Generate a triage recommendation from symptoms and FAISS-retrieved guidelines.
 
-    try:
-        genai.configure(api_key=GOOGLE_API_KEY_RECOMMEND)
-    except Exception as e:
-        print(f"Error configuring Gemini API key for recommendation: {e}")
-        return {"error": f"Gemini API key configuration error: {e}"}
+    Args:
+        symptoms_list: English symptom strings from extraction step
+        retrieved_guideline_entries: Top-N FAISS guideline entries
+        valyu_research_context: Optional Valyu research context string
+        valyu_enrichment: Optional Valyu enrichment dict (unused in prompt, reserved)
+        language: Target language code for response values ('en'|'ha'|'yo'|'ig'|'pcm')
 
-    model = genai.GenerativeModel(GEMINI_MODEL_NAME_RECOMMEND)
-    
+    Returns:
+        dict with keys: summary_of_findings, recommended_actions_for_chw,
+                        urgency_level, key_guideline_references,
+                        important_notes_for_chw, evidence_based_notes
+    """
+    if not OPENAI_API_KEY:
+        return {"error": "Configuration error: Missing OPENAI_API_KEY for recommendations."}
+
+    # ---------- Resolve language name + multilingual system instruction ----------
+    lang_name = "English"
+    lang_system_prefix = ""
+    if language and language != "en":
+        try:
+            from aidcare_pipeline.multilingual import LANGUAGE_TRIAGE_SYSTEM_INSTRUCTIONS, _language_name
+            lang_instruction = LANGUAGE_TRIAGE_SYSTEM_INSTRUCTIONS.get(language)
+            if lang_instruction:
+                lang_system_prefix = lang_instruction + "\n\n"
+            lang_name = _language_name(language)
+        except ImportError:
+            lang_name = language
+
+    # ---------- Build guideline context string ----------
     context_str = "Relevant Guideline Information:\n"
     if not retrieved_guideline_entries:
-        context_str += "No specific guideline entries were retrieved. Base recommendation on general knowledge for the given symptoms, if possible, or state that specific guidelines are needed for a definitive recommendation path.\n"
+        context_str += (
+            "No specific guideline entries were retrieved. Base recommendation on general "
+            "knowledge for the given symptoms, or state that specific guidelines are needed.\n"
+        )
     else:
-        for i, entry in enumerate(retrieved_guideline_entries[:3]): # Using top 3 relevant entries
+        for i, entry in enumerate(retrieved_guideline_entries[:3]):
             context_str += f"\n--- Guideline Entry {i+1} ---\n"
             context_str += f"Source Document: {entry.get('source_document', 'N/A')}\n"
             context_str += f"Section: {entry.get('section_title', 'N/A')}\n"
@@ -56,141 +78,103 @@ def generate_triage_recommendation(
                 else:
                     context_str += f"Notes from Guideline: {notes}\n"
 
-    symptoms_str = ", ".join(symptoms_list) if symptoms_list else "No specific symptoms reported by patient."
+    symptoms_str = ", ".join(symptoms_list) if symptoms_list else "No specific symptoms reported."
 
-    # Add Valyu enrichment context if available
+    # ---------- Optional Valyu enrichment ----------
     valyu_context_str = ""
-    has_valyu_enrichment = False
     if valyu_research_context and valyu_research_context.strip():
-        valyu_context_str = f"\n\nAdditional Evidence-Based Context (from recent medical literature and databases):\n{valyu_research_context}\n"
-        has_valyu_enrichment = True
+        valyu_context_str = (
+            f"\n\nAdditional Evidence-Based Context (from recent medical literature):\n"
+            f"{valyu_research_context}\n"
+        )
         print("Including Valyu research enrichment in recommendation prompt...")
 
-    system_instruction = (
-        "You are an AI Medical Assistant for Community Health Workers (CHWs) in Nigeria, designed to provide triage recommendations. "
-        "Your response MUST be strictly grounded in the provided 'Relevant Guideline Information'. "
-        "If additional evidence-based context from recent medical literature is provided, you may reference it to support your recommendations. "
-        "Do NOT invent information or actions not present in the guidelines or provided context. "
-        "You do NOT make definitive diagnoses. You help the CHW determine appropriate next steps based on the guidelines. "
-        "The output should be clear, concise, and directly actionable for a CHW. "
-        "Determine an urgency level based on the guidelines (e.g., 'Routine Care', 'Refer to Clinic', 'Urgent Referral to Hospital', 'Immediate Emergency Care/Referral')."
-    )
-
-    # Inject multilingual instruction when language is not English
-    lang_name = "English"
-    if language and language != "en":
-        try:
-            from aidcare_pipeline.multilingual import LANGUAGE_TRIAGE_SYSTEM_INSTRUCTIONS, _language_name
-            lang_instruction = LANGUAGE_TRIAGE_SYSTEM_INSTRUCTIONS.get(language)
-            if lang_instruction:
-                system_instruction = lang_instruction + "\n\n" + system_instruction
-            lang_name = _language_name(language)
-        except ImportError:
-            lang_name = language
-
-    prompt = f"""
-    Patient Symptoms:
-    {symptoms_str}
-
-    {context_str}{valyu_context_str}
-
-    Task:
-    Based ONLY on the patient symptoms and the provided 'Relevant Guideline Information' and any additional evidence-based context, generate a triage recommendation for the CHW.
-    Structure your response as a SINGLE JSON object with the following keys:
-    - "summary_of_findings": (string) A brief summary of the situation and potential concerns, referencing the most relevant guideline entry.
-    - "recommended_actions_for_chw": (list of strings) Specific, numbered, step-by-step actions the CHW should take, derived DIRECTLY from the 'Recommended Actions from Guideline' in the MOST RELEVANT provided context. If multiple guidelines are relevant, synthesize or pick the primary one.
-    - "urgency_level": (string) The determined level of urgency based on the 'Clinical Judgement from Guideline' and 'Recommended Actions from Guideline' (e.g., "Routine Care", "Monitor at Home", "Refer to Clinic for Assessment", "Urgent Referral to Higher Facility/Hospital", "Immediate Emergency Referral").
-    - "key_guideline_references": (list of strings) List the 'Source Document', 'Subsection Code' and 'Case' of the primary guideline(s) used for this recommendation (e.g., ["CHEW Guidelines - Code: 2.3, Case: Child with fever"]).
-    - "important_notes_for_chw": (list of strings, optional) Any critical 'Notes from Guideline' or other crucial brief reminders for the CHW relevant to the situation.
-    - "evidence_based_notes": (string, optional) If additional evidence-based context was provided from recent medical literature or databases, include a brief note about the supporting evidence (e.g., "Supported by 2 recent PubMed studies on fever management").
-
-    Example for "recommended_actions_for_chw": ["1. Measure temperature.", "2. If fever > 38.5C, give paracetamol.", "3. Advise on fluid intake."]
-    
-    If the provided guidelines are insufficient or contradictory for the given symptoms, clearly state that in the 'summary_of_findings' and recommend general caution or referral for further assessment.
-    If no symptoms were reported and guidelines suggest routine care, reflect that.
-
-    Return ONLY the JSON object. Do not include any text before or after the JSON object.
-    LANG_MANDATE_PLACEHOLDER
-    JSON Response:
-    """
-
-    # Inject multilingual mandate — replacing placeholder to avoid f-string variable collision
+    # ---------- Language mandate ----------
     if language != "en":
-        mandate = (
-            f"\n    CRITICAL LANGUAGE INSTRUCTION: Write ALL values in the JSON object in {lang_name}. "
-            f"Keep the JSON keys exactly as specified in English (e.g., 'summary_of_findings', 'recommended_actions_for_chw', etc.). "
-            f"Only the values should be in {lang_name}. Do not use English in any JSON value."
+        lang_mandate = (
+            f"\n\nCRITICAL LANGUAGE INSTRUCTION: Write ALL JSON values in {lang_name}. "
+            f"Keep JSON keys exactly as specified in English. "
+            f"Do not use English in any JSON value."
         )
     else:
-        mandate = ""
-    prompt = prompt.replace("LANG_MANDATE_PLACEHOLDER", mandate)
+        lang_mandate = ""
 
-    generation_config = genai.types.GenerationConfig(
-        temperature=0.15, 
-        max_output_tokens=1536, # Increased slightly
-        # For Gemini 1.5 Flash, this is very helpful for ensuring JSON output
-        # response_mime_type="application/json" 
+    # ---------- System instruction ----------
+    system_instruction = (
+        lang_system_prefix
+        + "You are an AI Medical Assistant for Community Health Workers (CHWs) in Nigeria, "
+        "designed to provide triage recommendations. "
+        "Your response MUST be strictly grounded in the provided 'Relevant Guideline Information'. "
+        "If additional evidence-based context from recent medical literature is provided, "
+        "you may reference it to support your recommendations. "
+        "Do NOT invent information or actions not present in the guidelines or provided context. "
+        "You do NOT make definitive diagnoses. You help the CHW determine appropriate next steps. "
+        "The output should be clear, concise, and directly actionable for a CHW. "
+        "Determine an urgency level based on the guidelines (e.g., 'Routine Care', "
+        "'Refer to Clinic', 'Urgent Referral to Hospital', 'Immediate Emergency Care/Referral')."
     )
-    
-    # Construct model instance based on whether it's Gemini 1.5 or older (for system_instruction handling)
-    if GEMINI_MODEL_NAME_RECOMMEND.startswith(_MODERN_GEMINI_PREFIXES):
-        # For Gemini 1.5, set response_mime_type if you want the model to strictly output JSON
-        # generation_config.response_mime_type="application/json" # Uncomment if using
-        model_instance = genai.GenerativeModel(
-            GEMINI_MODEL_NAME_RECOMMEND,
-            system_instruction=system_instruction,
-            generation_config=generation_config
-        )
-        user_prompt_for_1_5 = prompt # System instruction is handled by the model_instance
-    else: # For older models like gemini-1.0-pro
-        model_instance = model
-        user_prompt_for_1_5 = system_instruction + "\n\n" + prompt # Prepend system instruction
 
-    print(f"Sending request to Gemini model '{GEMINI_MODEL_NAME_RECOMMEND}' for recommendation generation...")
-    max_retries = 2 # Reduced retries for faster feedback during dev
+    # ---------- User prompt ----------
+    prompt = f"""Patient Symptoms:
+{symptoms_str}
+
+{context_str}{valyu_context_str}
+
+Task:
+Based ONLY on the patient symptoms and the provided Relevant Guideline Information (and any additional evidence-based context), generate a triage recommendation for the CHW.
+Return ONLY a JSON object with these exact keys:
+- "summary_of_findings": (string) Brief summary referencing the most relevant guideline entry.
+- "recommended_actions_for_chw": (list of strings) Numbered step-by-step actions from the guideline.
+- "urgency_level": (string) Urgency based on clinical judgement (e.g. "Routine Care", "Refer to Clinic", "Urgent Referral to Hospital", "Immediate Emergency Referral").
+- "key_guideline_references": (list of strings) Source documents and codes used.
+- "important_notes_for_chw": (list of strings) Critical notes for the CHW.
+- "evidence_based_notes": (string) Brief note on supporting evidence if Valyu context was provided.
+{lang_mandate}"""
+
+    print(f"Sending recommendation request to {OPENAI_MODEL_RECOMMEND} (language: {lang_name})...")
+
+    max_retries = 2
     for attempt in range(max_retries):
         try:
-            response = model_instance.generate_content(user_prompt_for_1_5)
+            from openai import OpenAI
+            client = OpenAI(api_key=OPENAI_API_KEY)
 
-            # Robust JSON extraction from response
-            if not response.parts:
-                raw_json_str = response.text.strip() if hasattr(response, 'text') and response.text else ""
-            else:
-                raw_json_str = response.parts[0].text.strip()
+            response = client.chat.completions.create(
+                model=OPENAI_MODEL_RECOMMEND,
+                messages=[
+                    {"role": "system", "content": system_instruction},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.15,
+                max_tokens=1536,
+                response_format={"type": "json_object"},  # Native JSON mode
+            )
 
-            # Clean markdown fences
-            if raw_json_str.startswith("```json"): raw_json_str = raw_json_str[len("```json"):]
-            if raw_json_str.startswith("```"): raw_json_str = raw_json_str[len("```"):]
-            if raw_json_str.endswith("```"): raw_json_str = raw_json_str[:-len("```")]
-            raw_json_str = raw_json_str.strip()
-            
-            print(f"Raw Gemini response content for recommendation (Attempt {attempt+1}): {raw_json_str}")
+            raw = response.choices[0].message.content.strip()
+            recommendation_json = json.loads(raw)
 
-            if not raw_json_str:
-                if attempt < max_retries - 1: time.sleep(1); continue
-                print("Warning: Gemini returned an empty string for recommendation.")
-                return {"error": "Gemini returned an empty response."}
-                
-            recommendation_json = json.loads(raw_json_str)
-            # Basic validation of expected structure
-            expected_keys = ["summary_of_findings", "recommended_actions_for_chw", "urgency_level", "key_guideline_references"]
-            if not all(key in recommendation_json for key in expected_keys):
-                print(f"Warning: Gemini response missing one or more expected keys. Got: {recommendation_json.keys()}")
-                # Optionally, retry or return an error structure
+            # Basic validation
+            expected_keys = ["summary_of_findings", "recommended_actions_for_chw",
+                             "urgency_level", "key_guideline_references"]
+            if not all(k in recommendation_json for k in expected_keys):
+                print(f"Warning: Response missing expected keys. Got: {list(recommendation_json.keys())}")
+
+            print(f"Recommendation generated successfully.")
             return recommendation_json
 
         except json.JSONDecodeError as e:
-            print(f"Error: Could not decode JSON from Gemini recommendation response (Attempt {attempt+1}): '{raw_json_str}'. Error: {e}")
-            if attempt < max_retries - 1: time.sleep(2 * (attempt + 1)); continue # Longer sleep before retry
-            return {"error": f"Failed to decode JSON from Gemini after multiple attempts. Last response: {raw_json_str}"}
+            print(f"JSON decode error in recommendation (attempt {attempt+1}): {e}")
+            if attempt < max_retries - 1:
+                time.sleep(2 * (attempt + 1))
+                continue
+            return {"error": f"Failed to decode JSON from recommendation model: {e}"}
         except Exception as e:
-            print(f"An error occurred during Gemini recommendation call (Attempt {attempt+1}): {e}")
-            # Specific error handling for common API issues
-            if "rate limit" in str(e).lower() or "quota" in str(e).lower() or "429" in str(e):
-                print("Rate limit or quota error detected.")
-                if attempt < max_retries - 1: time.sleep(10 * (attempt + 1)); continue # Much longer sleep
-            elif attempt < max_retries -1: time.sleep(2 * (attempt + 1)); continue
-            return {"error": f"Unhandled error during Gemini call: {e}"}
-            
-    print("Failed to get recommendation after all retries.")
-    return {"error": "Failed to generate recommendation after multiple retries."}
+            print(f"Error during recommendation call (attempt {attempt+1}): {e}")
+            if "rate_limit" in str(e).lower() or "429" in str(e):
+                time.sleep(10 * (attempt + 1))
+            elif attempt < max_retries - 1:
+                time.sleep(2 * (attempt + 1))
+            else:
+                return {"error": f"Recommendation generation failed: {e}"}
+
+    return {"error": "Failed to generate recommendation after all retries."}
