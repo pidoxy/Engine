@@ -18,15 +18,20 @@ from aidcare_pipeline.clinical_support_generation import generate_clinical_suppo
 from aidcare_pipeline.document_processing import process_uploaded_document_task 
 
 from aidcare_pipeline.rag_retrieval import (
-    get_chw_retriever, 
-    get_clinical_retriever, 
-    GuidelineRetriever 
+    get_chw_retriever,
+    get_clinical_retriever,
+    GuidelineRetriever,
+    HybridKnowledgeRetriever
 )
 from aidcare_pipeline.recommendation import generate_triage_recommendation
 from aidcare_pipeline.rate_limiter import get_rate_limit_stats, clear_cache, RateLimitExceeded
+from aidcare_pipeline.valyu_integration import get_valyu_searcher
+from aidcare_pipeline.multilingual import generate_multilingual_response
+from aidcare_pipeline.tts_service import generate_speech, get_voice_id
 # For Clinical Mode - Step 2 (You'll create this function/module later)
 # from aidcare_pipeline.clinical_support_generation import generate_clinical_support_details_with_gemini
 from pydantic import BaseModel
+from fastapi.responses import Response
 
 from aidcare_pipeline import crud, db_models 
 from aidcare_pipeline.database import get_db, engine 
@@ -35,6 +40,25 @@ from sqlalchemy.orm import Session
 # --- Pydantic Model for Text Input ---
 class TranscriptInput(BaseModel):
     transcript_text: str
+
+class ConversationContinueInput(BaseModel):
+    conversation_history: str
+    latest_message: str
+
+# --- Naija (multilingual) Pydantic models ---
+class NaijaConversationInput(BaseModel):
+    conversation_history: str
+    latest_message: str
+    language: str = 'en'  # 'en' | 'ha' | 'yo' | 'ig' | 'pcm'
+
+class NaijaTextInput(BaseModel):
+    transcript_text: str
+    language: str = 'en'
+
+class TTSRequest(BaseModel):
+    text: str
+    voice_id: str = ''
+    language: str = 'en'
 
 class PatientCreate(BaseModel):
     full_name: str | None = None
@@ -96,6 +120,37 @@ async def startup_event():
     except Exception as e:
         print(f"CRITICAL ERROR initializing Clinical Retriever: {e}")
 
+    # Initialize Valyu AI-native search integration
+    print("Initializing Valyu AI-native search integration...")
+    try:
+        valyu_searcher = get_valyu_searcher()
+        if valyu_searcher:
+            app_state["valyu_searcher"] = valyu_searcher
+            app_state["valyu_enabled"] = True
+            print("Valyu searcher initialized successfully.")
+
+            # Create hybrid retrievers if both FAISS and Valyu are available
+            if app_state.get("chw_retriever") and valyu_searcher:
+                app_state["chw_hybrid_retriever"] = HybridKnowledgeRetriever(
+                    faiss_retriever=app_state["chw_retriever"],
+                    valyu_searcher=valyu_searcher
+                )
+                print("CHW Hybrid Retriever (FAISS + Valyu) initialized.")
+
+            if app_state.get("clinical_retriever") and valyu_searcher:
+                app_state["clinical_hybrid_retriever"] = HybridKnowledgeRetriever(
+                    faiss_retriever=app_state["clinical_retriever"],
+                    valyu_searcher=valyu_searcher
+                )
+                print("Clinical Hybrid Retriever (FAISS + Valyu) initialized.")
+        else:
+            app_state["valyu_enabled"] = False
+            print("Valyu search not available or disabled. Using FAISS only.")
+    except Exception as e:
+        print(f"Warning: Could not initialize Valyu searcher: {e}")
+        print("Continuing with FAISS-only retrieval (graceful degradation).")
+        app_state["valyu_enabled"] = False
+
     print("FastAPI app startup complete (check logs for retriever status).")
 
 @app.on_event("shutdown")
@@ -111,6 +166,7 @@ app.add_middleware(
         "http://127.0.0.1:3001",
         "http://localhost:3001",
         "https://triage.theaidcare.com",  # Production custom domain
+        "https://lang.theaidcare.com",    # Naija language demo subdomain
         "https://*.vercel.app",  # Vercel preview deployments
     ],
     allow_credentials=True,
@@ -199,29 +255,72 @@ async def process_text_for_triage(
             raise HTTPException(status_code=500, detail=f"CHW Text Mode: Symptom extraction failed: {symptoms.get('error')}")
         print(f"CHW Text Mode - Phase 3 Complete. Extracted Symptoms: {symptoms}")
 
-        # --- Phase 4: RAG Triage Engine (Local RAG) ---
-        print("CHW Text Mode - Starting Phase 4: Guideline Retrieval...")
-        retrieved_docs = retriever.retrieve_relevant_guidelines(symptoms, top_k=3)
+        # --- Phase 4: Hybrid Knowledge Retrieval (FAISS + Valyu) ---
+        print("CHW Text Mode - Starting Phase 4: Hybrid Knowledge Retrieval...")
+        valyu_enabled = app_state.get("valyu_enabled", False)
+        hybrid_retriever = app_state.get("chw_hybrid_retriever")
+
+        if valyu_enabled and hybrid_retriever:
+            # Use hybrid retrieval (FAISS + Valyu)
+            print("CHW Text Mode - Using Hybrid Retrieval (FAISS + Valyu)...")
+            knowledge = hybrid_retriever.retrieve_multi_source(symptoms, mode="chw", top_k=3)
+            retrieved_docs = knowledge["faiss_results"]
+            valyu_context = knowledge["merged_context"]
+            valyu_enrichment = knowledge.get("valyu_results", {})
+            knowledge_sources = knowledge.get("knowledge_sources", {})
+        else:
+            # Fallback to FAISS only
+            print("CHW Text Mode - Using FAISS only (Valyu not available)...")
+            retrieved_docs = retriever.retrieve_relevant_guidelines(symptoms, top_k=3)
+            valyu_context = ""
+            valyu_enrichment = {}
+            knowledge_sources = {"local_guidelines": len(retrieved_docs)}
+
         print(f"CHW Text Mode - Phase 4 Complete. Retrieved {len(retrieved_docs)} guideline documents.")
 
-        # --- Phase 5: Triage Recommendation (Gemini API) ---
+        # --- Phase 5: Triage Recommendation with Valyu Context (Gemini API) ---
         print("CHW Text Mode - Starting Phase 5: Recommendation Generation...")
-        recommendation = generate_triage_recommendation(symptoms, retrieved_docs)
+        recommendation = generate_triage_recommendation(
+            symptoms,
+            retrieved_docs,
+            valyu_research_context=valyu_context,
+            valyu_enrichment=valyu_enrichment
+        )
         if not recommendation or ("error" in recommendation if isinstance(recommendation, dict) else False):
             error_detail = recommendation.get("error") if isinstance(recommendation, dict) else "Unknown error"
             raise HTTPException(status_code=500, detail=f"CHW Text Mode: Failed to generate recommendation: {error_detail}")
         print("CHW Text Mode - Phase 5 Complete. Recommendation generated.")
-        
-        return {
-            "mode": "chw_triage_text_input", # Indicate input type
-            "input_transcript": transcript, # Echo back the input transcript
+
+        # Build response with Valyu enrichment
+        response = {
+            "mode": "chw_triage_text_input",
+            "input_transcript": transcript,
             "extracted_symptoms": symptoms,
             "retrieved_guidelines_summary": [
-                {"source": d.get("source_document_name"), "code": d.get("subsection_code"), "case": d.get("case"), "score": d.get("retrieval_score (distance)")} 
+                {
+                    "source": d.get("source_document_name"),
+                    "code": d.get("subsection_code"),
+                    "case": d.get("case"),
+                    "score": d.get("retrieval_score (distance)")
+                }
                 for d in retrieved_docs
             ],
+            "knowledge_sources": knowledge_sources,
             "triage_recommendation": recommendation
         }
+
+        # Add Valyu enrichment if available
+        if valyu_enrichment:
+            response["valyu_enrichment"] = {
+                "enabled": True,
+                "research_articles": valyu_enrichment.get("literature", [])[:3],
+                "drug_information": valyu_enrichment.get("drugs", [])[:2],
+                "clinical_guidelines": valyu_enrichment.get("guidelines", [])[:2]
+            }
+        else:
+            response["valyu_enrichment"] = {"enabled": False}
+
+        return response
     except ValueError as e: # For API key issues from Gemini calls etc.
         print(f"Value error in CHW Text Mode: {e}")
         raise HTTPException(status_code=400, detail=str(e))
@@ -230,9 +329,174 @@ async def process_text_for_triage(
     except Exception as e:
         print(f"Unhandled error processing text for CHW triage: {e}")
         import traceback
-        traceback.print_exc() 
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"An internal server error occurred: {str(e)}")
-             
+
+# --- CONTINUE CONVERSATION ENDPOINT (Multi-turn conversation) ---
+@app.post("/triage/continue_conversation/")
+async def continue_triage_conversation(conversation_input: ConversationContinueInput):
+    """
+    Endpoint for multi-turn conversation during symptom gathering.
+    Uses Gemini to generate follow-up questions based on conversation history.
+    """
+    conversation_history = conversation_input.conversation_history
+    latest_message = conversation_input.latest_message
+
+    if not latest_message or not latest_message.strip():
+        raise HTTPException(status_code=400, detail="Latest message cannot be empty.")
+
+    try:
+        import google.generativeai as genai
+
+        # Configure Gemini
+        GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+        if not GOOGLE_API_KEY:
+            raise ValueError("GOOGLE_API_KEY not found in environment")
+
+        genai.configure(api_key=GOOGLE_API_KEY)
+
+        # Detect urgency keywords in the conversation
+        urgent_keywords = [
+            "chest pain", "heart attack", "can't breathe", "difficulty breathing",
+            "severe pain", "bleeding heavily", "unconscious", "seizure",
+            "stroke", "paralysis", "severe headache", "confusion",
+            "severe allergic", "anaphylaxis", "swelling throat", "blue lips"
+        ]
+
+        full_conversation = (conversation_history + " " + latest_message).lower()
+        is_urgent = any(keyword in full_conversation for keyword in urgent_keywords)
+
+        # Count exchanges (how many back-and-forths)
+        exchange_count = conversation_history.count("PATIENT:")
+
+        print("\n" + "="*60)
+        print("CONVERSATION CONTINUATION REQUEST")
+        print("="*60)
+        print(f"Latest Message: {latest_message}")
+        print(f"Exchange Count: {exchange_count}")
+        print(f"Is Urgent: {is_urgent}")
+        print(f"Full Conversation:\n{conversation_history}")
+        print("="*60 + "\n")
+
+        # System instruction for conversation
+        system_instruction = (
+            "You are a medical triage assistant gathering symptom information.\n"
+            "\n"
+            "ABSOLUTELY NEVER DO THESE:\n"
+            "❌ Ask 'Are there any other symptoms?' more than once\n"
+            "❌ Ask 'When did it start?' if they already mentioned timing\n"
+            "❌ Ask 'How severe is it?' if they already described severity\n"
+            "❌ Repeat ANY question\n"
+            "\n"
+            "YOUR PROCESS:\n"
+            "1. Read what the patient has already told you\n"
+            "2. Identify ONE piece of missing critical information\n"
+            "3. Ask about that ONE thing ONLY\n"
+            "4. If you have enough info → tell them to complete assessment\n"
+        )
+
+        if is_urgent and exchange_count >= 1:
+            # For urgent cases, move to assessment quickly after 1-2 exchanges
+            prompt = f"""EMERGENCY SITUATION - REVIEW AND DECIDE
+
+Previous conversation:
+{conversation_history}
+
+Latest patient message:
+{latest_message}
+
+COUNT OF EXCHANGES SO FAR: {exchange_count}
+
+TASK: Read the conversation above. Write down what you know:
+- Main symptom: ___
+- Location: ___
+- Started when: ___
+- Severity: ___
+- Other symptoms: ___
+
+DECISION TIME:
+A) If you know the main symptom + at least 2 other important details, respond EXACTLY:
+"This requires immediate medical attention. Completing your assessment now. [COMPLETE_ASSESSMENT]"
+
+B) If you're missing something CRITICAL (like "is this happening RIGHT NOW?"), ask that ONE question ONLY.
+
+C) NEVER EVER ask "Are there any other symptoms?" if they already told you multiple symptoms.
+
+Your response (A or B only):"""
+        else:
+            prompt = f"""Previous conversation:
+{conversation_history}
+
+Latest patient message:
+{latest_message}
+
+STEP 1 - WHAT DO YOU ALREADY KNOW? Write it down:
+Main symptoms mentioned: ___
+When it started: ___
+How severe: ___
+Other symptoms: ___
+
+STEP 2 - WHAT'S MISSING?
+Look at what you wrote above. What's the ONE most important thing you don't know yet?
+
+STEP 3 - ASK YOUR QUESTION
+Ask about that ONE missing thing ONLY.
+
+CRITICAL RULES:
+❌ NEVER ask "Are there any other symptoms?" if they already mentioned multiple symptoms
+❌ NEVER ask "when did it start" if they said "yesterday" or "30 minutes ago" or any time reference
+❌ NEVER ask the same question twice
+❌ If they've answered {exchange_count} times already, you probably have enough info. Say: "Thank you. I have enough details now. Please click 'Complete Assessment' to see your results."
+
+Your next question (ONE question only):"""
+
+        # Use Gemini 2.0 Flash with system instruction support
+        model = genai.GenerativeModel(
+            "gemini-2.0-flash-exp",
+            system_instruction=system_instruction
+        )
+
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.85,
+                max_output_tokens=300,
+                top_p=0.95
+            )
+        )
+
+        ai_response = response.text.strip() if response.text else "Can you tell me more about what you're experiencing?"
+
+        # Check if AI wants to complete assessment
+        should_complete = "[COMPLETE_ASSESSMENT]" in ai_response or \
+                         "completing your assessment now" in ai_response.lower() or \
+                         "complete assessment" in ai_response.lower()
+
+        # Remove the marker from response
+        ai_response = ai_response.replace("[COMPLETE_ASSESSMENT]", "").strip()
+
+        print("\n" + "="*60)
+        print("AI RESPONSE")
+        print("="*60)
+        print(f"Response: {ai_response}")
+        print(f"Should Auto-Complete: {should_complete}")
+        print("="*60 + "\n")
+
+        return {
+            "response": ai_response,
+            "conversation_complete": should_complete,
+            "should_auto_complete": should_complete  # Frontend can use this to auto-trigger
+        }
+
+    except ValueError as e:
+        print(f"Value error in conversation continuation: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        print(f"Unhandled error in conversation continuation: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"An internal server error occurred: {str(e)}")
+
 @app.post("/triage/process_audio/") # For CHW Mode
 async def process_audio_for_triage(
     audio_file: UploadFile = File(...),
@@ -258,28 +522,71 @@ async def process_audio_for_triage(
             raise HTTPException(status_code=500, detail=f"CHW Mode: Symptom extraction failed: {symptoms.get('error')}")
         print(f"CHW Mode - Phase 3 Complete. Extracted Symptoms: {symptoms}")
 
-        print("CHW Mode - Starting Phase 4: Guideline Retrieval...")
-        retrieved_docs = retriever.retrieve_relevant_guidelines(symptoms, top_k=3)
+        print("CHW Mode - Starting Phase 4: Hybrid Knowledge Retrieval...")
+        valyu_enabled = app_state.get("valyu_enabled", False)
+        hybrid_retriever = app_state.get("chw_hybrid_retriever")
+
+        if valyu_enabled and hybrid_retriever:
+            # Use hybrid retrieval (FAISS + Valyu)
+            print("CHW Mode - Using Hybrid Retrieval (FAISS + Valyu)...")
+            knowledge = hybrid_retriever.retrieve_multi_source(symptoms, mode="chw", top_k=3)
+            retrieved_docs = knowledge["faiss_results"]
+            valyu_context = knowledge["merged_context"]
+            valyu_enrichment = knowledge.get("valyu_results", {})
+            knowledge_sources = knowledge.get("knowledge_sources", {})
+        else:
+            # Fallback to FAISS only
+            print("CHW Mode - Using FAISS only (Valyu not available)...")
+            retrieved_docs = retriever.retrieve_relevant_guidelines(symptoms, top_k=3)
+            valyu_context = ""
+            valyu_enrichment = {}
+            knowledge_sources = {"local_guidelines": len(retrieved_docs)}
+
         print(f"CHW Mode - Phase 4 Complete. Retrieved {len(retrieved_docs)} guideline documents.")
 
         print("CHW Mode - Starting Phase 5: Recommendation Generation...")
-        # This uses the generate_triage_recommendation for CHWs
-        recommendation = generate_triage_recommendation(symptoms, retrieved_docs) 
+        # This uses the generate_triage_recommendation for CHWs with Valyu context
+        recommendation = generate_triage_recommendation(
+            symptoms,
+            retrieved_docs,
+            valyu_research_context=valyu_context,
+            valyu_enrichment=valyu_enrichment
+        )
         if not recommendation or ("error" in recommendation if isinstance(recommendation, dict) else False):
             error_detail = recommendation.get("error") if isinstance(recommendation, dict) else "Unknown error"
             raise HTTPException(status_code=500, detail=f"CHW Mode: Failed to generate recommendation: {error_detail}")
         print("CHW Mode - Phase 5 Complete. Recommendation generated.")
-        
-        return {
+
+        # Build response with Valyu enrichment
+        response = {
             "mode": "chw_triage",
             "transcript": transcript,
             "extracted_symptoms": symptoms,
             "retrieved_guidelines_summary": [
-                {"source": d.get("source_document_name"), "code": d.get("subsection_code"), "case": d.get("case"), "score": d.get("retrieval_score (distance)")} 
+                {
+                    "source": d.get("source_document_name"),
+                    "code": d.get("subsection_code"),
+                    "case": d.get("case"),
+                    "score": d.get("retrieval_score (distance)")
+                }
                 for d in retrieved_docs
             ],
+            "knowledge_sources": knowledge_sources,
             "triage_recommendation": recommendation
         }
+
+        # Add Valyu enrichment if available
+        if valyu_enrichment:
+            response["valyu_enrichment"] = {
+                "enabled": True,
+                "research_articles": valyu_enrichment.get("literature", [])[:3],
+                "drug_information": valyu_enrichment.get("drugs", [])[:2],
+                "clinical_guidelines": valyu_enrichment.get("guidelines", [])[:2]
+            }
+        else:
+            response["valyu_enrichment"] = {"enabled": False}
+
+        return response
     except FileNotFoundError as e:
         print(f"File not found error: {e}")
         raise HTTPException(status_code=404, detail=f"Required file not found: {e}")
@@ -628,3 +935,183 @@ async def admin_stats():
         "rate_limit_stats": get_rate_limit_stats("global"),
         "timestamp": time.time()
     }
+
+
+# ===========================================================================
+# NAIJA MULTILINGUAL ENDPOINTS
+# UNDP Nigeria IC × Timbuktu Initiative — International Mother Language Day
+# ===========================================================================
+
+@app.post("/naija/continue_conversation/")
+async def naija_continue_conversation(conversation_input: NaijaConversationInput):
+    """
+    Multi-turn conversation endpoint for Nigerian local languages.
+    Supports: English, Hausa, Yorùbá, Igbo, Nigerian Pidgin.
+    """
+    if not conversation_input.latest_message or not conversation_input.latest_message.strip():
+        raise HTTPException(status_code=400, detail="Latest message cannot be empty.")
+
+    try:
+        result = generate_multilingual_response(
+            conversation_history=conversation_input.conversation_history,
+            latest_message=conversation_input.latest_message,
+            language=conversation_input.language,
+        )
+        return result
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Multilingual conversation error: {str(e)}")
+
+
+@app.post("/naija/process_text/")
+async def naija_process_text(
+    transcript_input: NaijaTextInput,
+    retriever: GuidelineRetriever = Depends(get_chw_retriever_dependency),
+):
+    """
+    Full triage pipeline for multilingual text input.
+    Symptoms extracted in English (for FAISS), recommendation generated in target language.
+    """
+    transcript = transcript_input.transcript_text
+    language = transcript_input.language
+
+    if not transcript or not transcript.strip():
+        raise HTTPException(status_code=400, detail="Transcript text cannot be empty.")
+
+    try:
+        # Symptom extraction — Gemini handles multilingual input, always returns English JSON
+        print(f"Naija Text Mode [{language}] - Symptom Extraction...")
+        symptoms = extract_symptoms_with_gemini(transcript)
+        if isinstance(symptoms, dict) and "error" in symptoms:
+            raise HTTPException(status_code=500, detail=f"Symptom extraction failed: {symptoms.get('error')}")
+        print(f"Naija Text Mode [{language}] - Extracted symptoms: {symptoms}")
+
+        # Knowledge retrieval (FAISS — English index)
+        print(f"Naija Text Mode [{language}] - Knowledge Retrieval...")
+        valyu_enabled = app_state.get("valyu_enabled", False)
+        hybrid_retriever = app_state.get("chw_hybrid_retriever")
+
+        if valyu_enabled and hybrid_retriever:
+            knowledge = hybrid_retriever.retrieve_multi_source(symptoms, mode="chw", top_k=3)
+            retrieved_docs = knowledge["faiss_results"]
+            valyu_context = knowledge["merged_context"]
+            valyu_enrichment = knowledge.get("valyu_results", {})
+        else:
+            retrieved_docs = retriever.retrieve_relevant_guidelines(symptoms, top_k=3)
+            valyu_context = ""
+            valyu_enrichment = {}
+
+        print(f"Naija Text Mode [{language}] - Retrieved {len(retrieved_docs)} guideline docs.")
+
+        # Recommendation generation — output in target language
+        print(f"Naija Text Mode [{language}] - Generating recommendation in {language}...")
+        recommendation = generate_triage_recommendation(
+            symptoms,
+            retrieved_docs,
+            valyu_research_context=valyu_context,
+            valyu_enrichment=valyu_enrichment,
+            language=language,
+        )
+        if not recommendation or (isinstance(recommendation, dict) and "error" in recommendation):
+            error_detail = recommendation.get("error") if isinstance(recommendation, dict) else "Unknown error"
+            raise HTTPException(status_code=500, detail=f"Recommendation failed: {error_detail}")
+
+        return {
+            "mode": f"naija_triage_{language}",
+            "language": language,
+            "input_transcript": transcript,
+            "extracted_symptoms": symptoms,
+            "triage_recommendation": recommendation,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Naija triage error: {str(e)}")
+
+
+@app.post("/naija/process_audio/")
+async def naija_process_audio(
+    audio_file: UploadFile = File(...),
+    language: str = Form("en"),
+    retriever: GuidelineRetriever = Depends(get_chw_retriever_dependency),
+):
+    """
+    Audio triage pipeline for Nigerian local languages.
+    Whisper is given a language hint for better accuracy.
+    """
+    unique_suffix = f"{int(time.time() * 1000)}_naija_{audio_file.filename}"
+    file_path = os.path.join(TEMP_AUDIO_DIR, unique_suffix)
+
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(audio_file.file, buffer)
+
+        print(f"Naija Audio Mode [{language}] - Transcribing with language hint...")
+        transcript = transcribe_audio_local(file_path, language=language if language != 'pcm' else None)
+        if not transcript:
+            raise HTTPException(status_code=500, detail="Transcription failed or returned empty.")
+        print(f"Naija Audio Mode [{language}] - Transcript: {transcript[:100]}...")
+
+        # Delegate to the text pipeline
+        text_input = NaijaTextInput(transcript_text=transcript, language=language)
+        return await naija_process_text(transcript_input=text_input, retriever=retriever)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Naija audio processing error: {str(e)}")
+    finally:
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass
+
+
+@app.post("/tts/generate/")
+async def tts_generate(tts_request: TTSRequest):
+    """
+    ElevenLabs TTS proxy endpoint. Keeps the API key server-side.
+    Returns raw audio/mpeg binary.
+    """
+    if not os.environ.get("ELEVENLABS_API_KEY"):
+        raise HTTPException(
+            status_code=503,
+            detail="TTS service is not configured. Please set ELEVENLABS_API_KEY."
+        )
+
+    if not tts_request.text or not tts_request.text.strip():
+        raise HTTPException(status_code=400, detail="Text cannot be empty.")
+
+    try:
+        # Use provided voice_id or look up by language
+        effective_voice_id = tts_request.voice_id if tts_request.voice_id else get_voice_id(tts_request.language)
+
+        audio_bytes = await generate_speech(
+            text=tts_request.text,
+            language=tts_request.language,
+            voice_id=effective_voice_id,
+        )
+
+        return Response(
+            content=audio_bytes,
+            media_type="audio/mpeg",
+            headers={
+                "Cache-Control": "no-store",
+                "Content-Disposition": "inline",
+            },
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        # Return 503 so frontend can gracefully fall back (show text only)
+        raise HTTPException(status_code=503, detail=f"TTS generation failed: {str(e)}")

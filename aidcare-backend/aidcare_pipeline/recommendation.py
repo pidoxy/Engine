@@ -11,7 +11,13 @@ GOOGLE_API_KEY_RECOMMEND = os.environ.get("GOOGLE_API_KEY")
 _MODERN_GEMINI_PREFIXES = ("gemini-1.5", "gemini-2", "gemini-3")
 
 @cached_gemini_call(ttl=3600, rate_limit_id="recommendation")
-def generate_triage_recommendation(symptoms_list: list, retrieved_guideline_entries: list) -> dict:
+def generate_triage_recommendation(
+    symptoms_list: list,
+    retrieved_guideline_entries: list,
+    valyu_research_context: str = "",
+    valyu_enrichment: dict = None,
+    language: str = "en"
+) -> dict:
     if not GOOGLE_API_KEY_RECOMMEND:
         # In a real app, you might want to raise an exception or handle this more gracefully
         print("ERROR: GOOGLE_API_KEY not found in environment for recommendation generation.")
@@ -52,29 +58,51 @@ def generate_triage_recommendation(symptoms_list: list, retrieved_guideline_entr
 
     symptoms_str = ", ".join(symptoms_list) if symptoms_list else "No specific symptoms reported by patient."
 
+    # Add Valyu enrichment context if available
+    valyu_context_str = ""
+    has_valyu_enrichment = False
+    if valyu_research_context and valyu_research_context.strip():
+        valyu_context_str = f"\n\nAdditional Evidence-Based Context (from recent medical literature and databases):\n{valyu_research_context}\n"
+        has_valyu_enrichment = True
+        print("Including Valyu research enrichment in recommendation prompt...")
+
     system_instruction = (
         "You are an AI Medical Assistant for Community Health Workers (CHWs) in Nigeria, designed to provide triage recommendations. "
         "Your response MUST be strictly grounded in the provided 'Relevant Guideline Information'. "
-        "Do NOT invent information or actions not present in the guidelines. "
+        "If additional evidence-based context from recent medical literature is provided, you may reference it to support your recommendations. "
+        "Do NOT invent information or actions not present in the guidelines or provided context. "
         "You do NOT make definitive diagnoses. You help the CHW determine appropriate next steps based on the guidelines. "
         "The output should be clear, concise, and directly actionable for a CHW. "
         "Determine an urgency level based on the guidelines (e.g., 'Routine Care', 'Refer to Clinic', 'Urgent Referral to Hospital', 'Immediate Emergency Care/Referral')."
     )
 
+    # Inject multilingual instruction when language is not English
+    lang_name = "English"
+    if language and language != "en":
+        try:
+            from aidcare_pipeline.multilingual import LANGUAGE_TRIAGE_SYSTEM_INSTRUCTIONS, _language_name
+            lang_instruction = LANGUAGE_TRIAGE_SYSTEM_INSTRUCTIONS.get(language)
+            if lang_instruction:
+                system_instruction = lang_instruction + "\n\n" + system_instruction
+            lang_name = _language_name(language)
+        except ImportError:
+            lang_name = language
+
     prompt = f"""
     Patient Symptoms:
     {symptoms_str}
 
-    {context_str}
+    {context_str}{valyu_context_str}
 
     Task:
-    Based ONLY on the patient symptoms and the provided 'Relevant Guideline Information', generate a triage recommendation for the CHW.
+    Based ONLY on the patient symptoms and the provided 'Relevant Guideline Information' and any additional evidence-based context, generate a triage recommendation for the CHW.
     Structure your response as a SINGLE JSON object with the following keys:
     - "summary_of_findings": (string) A brief summary of the situation and potential concerns, referencing the most relevant guideline entry.
     - "recommended_actions_for_chw": (list of strings) Specific, numbered, step-by-step actions the CHW should take, derived DIRECTLY from the 'Recommended Actions from Guideline' in the MOST RELEVANT provided context. If multiple guidelines are relevant, synthesize or pick the primary one.
     - "urgency_level": (string) The determined level of urgency based on the 'Clinical Judgement from Guideline' and 'Recommended Actions from Guideline' (e.g., "Routine Care", "Monitor at Home", "Refer to Clinic for Assessment", "Urgent Referral to Higher Facility/Hospital", "Immediate Emergency Referral").
     - "key_guideline_references": (list of strings) List the 'Source Document', 'Subsection Code' and 'Case' of the primary guideline(s) used for this recommendation (e.g., ["CHEW Guidelines - Code: 2.3, Case: Child with fever"]).
     - "important_notes_for_chw": (list of strings, optional) Any critical 'Notes from Guideline' or other crucial brief reminders for the CHW relevant to the situation.
+    - "evidence_based_notes": (string, optional) If additional evidence-based context was provided from recent medical literature or databases, include a brief note about the supporting evidence (e.g., "Supported by 2 recent PubMed studies on fever management").
 
     Example for "recommended_actions_for_chw": ["1. Measure temperature.", "2. If fever > 38.5C, give paracetamol.", "3. Advise on fluid intake."]
     
@@ -82,8 +110,20 @@ def generate_triage_recommendation(symptoms_list: list, retrieved_guideline_entr
     If no symptoms were reported and guidelines suggest routine care, reflect that.
 
     Return ONLY the JSON object. Do not include any text before or after the JSON object.
+    LANG_MANDATE_PLACEHOLDER
     JSON Response:
     """
+
+    # Inject multilingual mandate — replacing placeholder to avoid f-string variable collision
+    if language != "en":
+        mandate = (
+            f"\n    CRITICAL LANGUAGE INSTRUCTION: Write ALL values in the JSON object in {lang_name}. "
+            f"Keep the JSON keys exactly as specified in English (e.g., 'summary_of_findings', 'recommended_actions_for_chw', etc.). "
+            f"Only the values should be in {lang_name}. Do not use English in any JSON value."
+        )
+    else:
+        mandate = ""
+    prompt = prompt.replace("LANG_MANDATE_PLACEHOLDER", mandate)
 
     generation_config = genai.types.GenerationConfig(
         temperature=0.15, 

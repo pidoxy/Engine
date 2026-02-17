@@ -37,14 +37,37 @@ def load_whisper_model():
         print(f"Whisper model '{WHISPER_MODEL_NAME}' loaded on device '{device}'.")
     return asr_pipeline_global
 
-def transcribe_audio_local(audio_file_path: str) -> str:
+def transcribe_audio_local(audio_file_path: str, language: str = None) -> str:
+    """
+    Transcribe audio using Whisper.
+
+    Args:
+        audio_file_path: Path to the audio file
+        language: Optional BCP-47 language code hint (e.g., 'ha', 'yo', 'ig').
+                  Improves accuracy for non-English audio. Pass None for auto-detection.
+
+    Returns:
+        Transcribed text string
+    """
     pipeline_instance = load_whisper_model() # Ensures model is loaded
     if not os.path.exists(audio_file_path):
         raise FileNotFoundError(f"Audio file not found: {audio_file_path}")
     try:
-        print(f"Transcribing audio file: {audio_file_path}...")
+        print(f"Transcribing audio file: {audio_file_path} (language hint: {language or 'auto'})...")
+
+        # Build generate_kwargs with optional language hint for Nigerian languages
+        generate_kwargs = {}
+        if language and language not in ('en', 'pcm'):
+            # Whisper supports Hausa (ha), Yoruba (yo), Igbo (ig)
+            generate_kwargs["language"] = language
+            print(f"Using Whisper language hint: {language}")
+
         # For audio > 30s, return_timestamps=True is needed for long-form generation
-        transcription_output = pipeline_instance(audio_file_path, return_timestamps=True)
+        transcription_output = pipeline_instance(
+            audio_file_path,
+            return_timestamps=True,
+            generate_kwargs=generate_kwargs if generate_kwargs else None,
+        )
         transcript_text = transcription_output["text"].strip()
         print(f"Transcription successful for {audio_file_path}.")
         return transcript_text
