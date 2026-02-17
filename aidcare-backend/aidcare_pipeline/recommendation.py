@@ -16,8 +16,6 @@ OPENAI_MODEL_RECOMMEND = os.getenv("OPENAI_MODEL_RECOMMEND", "gpt-4o-mini")
 def generate_triage_recommendation(
     symptoms_list: list,
     retrieved_guideline_entries: list,
-    valyu_research_context: str = "",
-    valyu_enrichment: dict = None,
     language: str = "en"
 ) -> dict:
     """
@@ -26,8 +24,6 @@ def generate_triage_recommendation(
     Args:
         symptoms_list: English symptom strings from extraction step
         retrieved_guideline_entries: Top-N FAISS guideline entries
-        valyu_research_context: Optional Valyu research context string
-        valyu_enrichment: Optional Valyu enrichment dict (unused in prompt, reserved)
         language: Target language code for response values ('en'|'ha'|'yo'|'ig'|'pcm')
 
     Returns:
@@ -80,15 +76,6 @@ def generate_triage_recommendation(
 
     symptoms_str = ", ".join(symptoms_list) if symptoms_list else "No specific symptoms reported."
 
-    # ---------- Optional Valyu enrichment ----------
-    valyu_context_str = ""
-    if valyu_research_context and valyu_research_context.strip():
-        valyu_context_str = (
-            f"\n\nAdditional Evidence-Based Context (from recent medical literature):\n"
-            f"{valyu_research_context}\n"
-        )
-        print("Including Valyu research enrichment in recommendation prompt...")
-
     # ---------- Language mandate ----------
     if language != "en":
         lang_mandate = (
@@ -118,8 +105,7 @@ def generate_triage_recommendation(
     prompt = f"""Patient Symptoms:
 {symptoms_str}
 
-{context_str}{valyu_context_str}
-
+{context_str}
 Task:
 Based ONLY on the patient symptoms and the provided Relevant Guideline Information (and any additional evidence-based context), generate a triage recommendation for the CHW.
 Return ONLY a JSON object with these exact keys:
@@ -128,7 +114,7 @@ Return ONLY a JSON object with these exact keys:
 - "urgency_level": (string) Urgency based on clinical judgement (e.g. "Routine Care", "Refer to Clinic", "Urgent Referral to Hospital", "Immediate Emergency Referral").
 - "key_guideline_references": (list of strings) Source documents and codes used.
 - "important_notes_for_chw": (list of strings) Critical notes for the CHW.
-- "evidence_based_notes": (string) Brief note on supporting evidence if Valyu context was provided.
+- "evidence_based_notes": (string) Any supporting evidence notes.
 {lang_mandate}"""
 
     print(f"Sending recommendation request to {OPENAI_MODEL_RECOMMEND} (language: {lang_name})...")

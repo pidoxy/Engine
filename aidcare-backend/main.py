@@ -21,11 +21,9 @@ from aidcare_pipeline.rag_retrieval import (
     get_chw_retriever,
     get_clinical_retriever,
     GuidelineRetriever,
-    HybridKnowledgeRetriever
 )
 from aidcare_pipeline.recommendation import generate_triage_recommendation
 from aidcare_pipeline.rate_limiter import get_rate_limit_stats, clear_cache, RateLimitExceeded
-from aidcare_pipeline.valyu_integration import get_valyu_searcher
 from aidcare_pipeline.multilingual import generate_multilingual_response
 from aidcare_pipeline.tts_service import generate_speech, get_voice_id
 # For Clinical Mode - Step 2 (You'll create this function/module later)
@@ -119,37 +117,6 @@ async def startup_event():
             print("ERROR: Clinical Retriever FAILED to load or index is empty.")
     except Exception as e:
         print(f"CRITICAL ERROR initializing Clinical Retriever: {e}")
-
-    # Initialize Valyu AI-native search integration
-    print("Initializing Valyu AI-native search integration...")
-    try:
-        valyu_searcher = get_valyu_searcher()
-        if valyu_searcher:
-            app_state["valyu_searcher"] = valyu_searcher
-            app_state["valyu_enabled"] = True
-            print("Valyu searcher initialized successfully.")
-
-            # Create hybrid retrievers if both FAISS and Valyu are available
-            if app_state.get("chw_retriever") and valyu_searcher:
-                app_state["chw_hybrid_retriever"] = HybridKnowledgeRetriever(
-                    faiss_retriever=app_state["chw_retriever"],
-                    valyu_searcher=valyu_searcher
-                )
-                print("CHW Hybrid Retriever (FAISS + Valyu) initialized.")
-
-            if app_state.get("clinical_retriever") and valyu_searcher:
-                app_state["clinical_hybrid_retriever"] = HybridKnowledgeRetriever(
-                    faiss_retriever=app_state["clinical_retriever"],
-                    valyu_searcher=valyu_searcher
-                )
-                print("Clinical Hybrid Retriever (FAISS + Valyu) initialized.")
-        else:
-            app_state["valyu_enabled"] = False
-            print("Valyu search not available or disabled. Using FAISS only.")
-    except Exception as e:
-        print(f"Warning: Could not initialize Valyu searcher: {e}")
-        print("Continuing with FAISS-only retrieval (graceful degradation).")
-        app_state["valyu_enabled"] = False
 
     print("FastAPI app startup complete (check logs for retriever status).")
 
@@ -255,36 +222,17 @@ async def process_text_for_triage(
             raise HTTPException(status_code=500, detail=f"CHW Text Mode: Symptom extraction failed: {symptoms.get('error')}")
         print(f"CHW Text Mode - Phase 3 Complete. Extracted Symptoms: {symptoms}")
 
-        # --- Phase 4: Hybrid Knowledge Retrieval (FAISS + Valyu) ---
-        print("CHW Text Mode - Starting Phase 4: Hybrid Knowledge Retrieval...")
-        valyu_enabled = app_state.get("valyu_enabled", False)
-        hybrid_retriever = app_state.get("chw_hybrid_retriever")
-
-        if valyu_enabled and hybrid_retriever:
-            # Use hybrid retrieval (FAISS + Valyu)
-            print("CHW Text Mode - Using Hybrid Retrieval (FAISS + Valyu)...")
-            knowledge = hybrid_retriever.retrieve_multi_source(symptoms, mode="chw", top_k=3)
-            retrieved_docs = knowledge["faiss_results"]
-            valyu_context = knowledge["merged_context"]
-            valyu_enrichment = knowledge.get("valyu_results", {})
-            knowledge_sources = knowledge.get("knowledge_sources", {})
-        else:
-            # Fallback to FAISS only
-            print("CHW Text Mode - Using FAISS only (Valyu not available)...")
-            retrieved_docs = retriever.retrieve_relevant_guidelines(symptoms, top_k=3)
-            valyu_context = ""
-            valyu_enrichment = {}
-            knowledge_sources = {"local_guidelines": len(retrieved_docs)}
-
+        # --- Phase 4: Knowledge Retrieval (FAISS) ---
+        print("CHW Text Mode - Starting Phase 4: Knowledge Retrieval...")
+        retrieved_docs = retriever.retrieve_relevant_guidelines(symptoms, top_k=3)
+        knowledge_sources = {"local_guidelines": len(retrieved_docs)}
         print(f"CHW Text Mode - Phase 4 Complete. Retrieved {len(retrieved_docs)} guideline documents.")
 
-        # --- Phase 5: Triage Recommendation with Valyu Context (Gemini API) ---
+        # --- Phase 5: Triage Recommendation ---
         print("CHW Text Mode - Starting Phase 5: Recommendation Generation...")
         recommendation = generate_triage_recommendation(
             symptoms,
             retrieved_docs,
-            valyu_research_context=valyu_context,
-            valyu_enrichment=valyu_enrichment
         )
         if not recommendation or ("error" in recommendation if isinstance(recommendation, dict) else False):
             error_detail = recommendation.get("error") if isinstance(recommendation, dict) else "Unknown error"
@@ -308,17 +256,6 @@ async def process_text_for_triage(
             "knowledge_sources": knowledge_sources,
             "triage_recommendation": recommendation
         }
-
-        # Add Valyu enrichment if available
-        if valyu_enrichment:
-            response["valyu_enrichment"] = {
-                "enabled": True,
-                "research_articles": valyu_enrichment.get("literature", [])[:3],
-                "drug_information": valyu_enrichment.get("drugs", [])[:2],
-                "clinical_guidelines": valyu_enrichment.get("guidelines", [])[:2]
-            }
-        else:
-            response["valyu_enrichment"] = {"enabled": False}
 
         return response
     except ValueError as e: # For API key issues from Gemini calls etc.
@@ -522,35 +459,15 @@ async def process_audio_for_triage(
             raise HTTPException(status_code=500, detail=f"CHW Mode: Symptom extraction failed: {symptoms.get('error')}")
         print(f"CHW Mode - Phase 3 Complete. Extracted Symptoms: {symptoms}")
 
-        print("CHW Mode - Starting Phase 4: Hybrid Knowledge Retrieval...")
-        valyu_enabled = app_state.get("valyu_enabled", False)
-        hybrid_retriever = app_state.get("chw_hybrid_retriever")
-
-        if valyu_enabled and hybrid_retriever:
-            # Use hybrid retrieval (FAISS + Valyu)
-            print("CHW Mode - Using Hybrid Retrieval (FAISS + Valyu)...")
-            knowledge = hybrid_retriever.retrieve_multi_source(symptoms, mode="chw", top_k=3)
-            retrieved_docs = knowledge["faiss_results"]
-            valyu_context = knowledge["merged_context"]
-            valyu_enrichment = knowledge.get("valyu_results", {})
-            knowledge_sources = knowledge.get("knowledge_sources", {})
-        else:
-            # Fallback to FAISS only
-            print("CHW Mode - Using FAISS only (Valyu not available)...")
-            retrieved_docs = retriever.retrieve_relevant_guidelines(symptoms, top_k=3)
-            valyu_context = ""
-            valyu_enrichment = {}
-            knowledge_sources = {"local_guidelines": len(retrieved_docs)}
-
+        print("CHW Mode - Starting Phase 4: Knowledge Retrieval...")
+        retrieved_docs = retriever.retrieve_relevant_guidelines(symptoms, top_k=3)
+        knowledge_sources = {"local_guidelines": len(retrieved_docs)}
         print(f"CHW Mode - Phase 4 Complete. Retrieved {len(retrieved_docs)} guideline documents.")
 
         print("CHW Mode - Starting Phase 5: Recommendation Generation...")
-        # This uses the generate_triage_recommendation for CHWs with Valyu context
         recommendation = generate_triage_recommendation(
             symptoms,
             retrieved_docs,
-            valyu_research_context=valyu_context,
-            valyu_enrichment=valyu_enrichment
         )
         if not recommendation or ("error" in recommendation if isinstance(recommendation, dict) else False):
             error_detail = recommendation.get("error") if isinstance(recommendation, dict) else "Unknown error"
@@ -574,17 +491,6 @@ async def process_audio_for_triage(
             "knowledge_sources": knowledge_sources,
             "triage_recommendation": recommendation
         }
-
-        # Add Valyu enrichment if available
-        if valyu_enrichment:
-            response["valyu_enrichment"] = {
-                "enabled": True,
-                "research_articles": valyu_enrichment.get("literature", [])[:3],
-                "drug_information": valyu_enrichment.get("drugs", [])[:2],
-                "clinical_guidelines": valyu_enrichment.get("guidelines", [])[:2]
-            }
-        else:
-            response["valyu_enrichment"] = {"enabled": False}
 
         return response
     except FileNotFoundError as e:
@@ -989,19 +895,7 @@ async def naija_process_text(
 
         # Knowledge retrieval (FAISS — English index)
         print(f"Naija Text Mode [{language}] - Knowledge Retrieval...")
-        valyu_enabled = app_state.get("valyu_enabled", False)
-        hybrid_retriever = app_state.get("chw_hybrid_retriever")
-
-        if valyu_enabled and hybrid_retriever:
-            knowledge = hybrid_retriever.retrieve_multi_source(symptoms, mode="chw", top_k=3)
-            retrieved_docs = knowledge["faiss_results"]
-            valyu_context = knowledge["merged_context"]
-            valyu_enrichment = knowledge.get("valyu_results", {})
-        else:
-            retrieved_docs = retriever.retrieve_relevant_guidelines(symptoms, top_k=3)
-            valyu_context = ""
-            valyu_enrichment = {}
-
+        retrieved_docs = retriever.retrieve_relevant_guidelines(symptoms, top_k=3)
         print(f"Naija Text Mode [{language}] - Retrieved {len(retrieved_docs)} guideline docs.")
 
         # Recommendation generation — output in target language
@@ -1009,8 +903,6 @@ async def naija_process_text(
         recommendation = generate_triage_recommendation(
             symptoms,
             retrieved_docs,
-            valyu_research_context=valyu_context,
-            valyu_enrichment=valyu_enrichment,
             language=language,
         )
         if not recommendation or (isinstance(recommendation, dict) and "error" in recommendation):

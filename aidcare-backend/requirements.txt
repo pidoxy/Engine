@@ -24,9 +24,6 @@ accelerate==1.7.0
 # Vector Search
 faiss-cpu==1.11.0
 
-# Valyu AI-native search
-valyu==1.0.0
-
 # Scientific Computing
 numpy==2.2.4
 scikit-learn==1.6.1
