@@ -63,9 +63,8 @@ export async function speakText(
       }),
     });
 
-    isFetching = false;
-
     if (!res.ok) {
+      isFetching = false;
       console.warn(`TTS request failed (${res.status}). Text will display only.`);
       onEnd?.();
       return;
@@ -79,10 +78,14 @@ export async function speakText(
     currentAudio = audio;
 
     audio.onplay = () => {
+      // Audio is actually playing now — release the lock so a manual
+      // SpeakButton click can interrupt if the user wants to replay
+      isFetching = false;
       onStart?.();
     };
 
     audio.onended = () => {
+      isFetching = false;
       URL.revokeObjectURL(objectUrl);
       currentObjectUrl = null;
       currentAudio = null;
@@ -90,6 +93,7 @@ export async function speakText(
     };
 
     audio.onerror = () => {
+      isFetching = false;
       URL.revokeObjectURL(objectUrl);
       currentObjectUrl = null;
       currentAudio = null;
