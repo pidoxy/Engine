@@ -1,14 +1,15 @@
 # main.py
+import os
+from dotenv import load_dotenv
+load_dotenv()  # Must be called BEFORE any pipeline imports that read os.environ at module level
+
 import asyncio
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Form, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 import shutil
-import os
 import time
 import json
-from dotenv import load_dotenv
-import os
-import uuid 
+import uuid
 
 # --- AI pipeline modules ---
 from aidcare_pipeline.transcription import transcribe_audio_local, load_whisper_model
@@ -69,8 +70,6 @@ class PatientResponse(BaseModel):
     class Config:
         orm_mode = True
         
-load_dotenv() 
-
 # --- Environment Variable Checks & Setup ---
 if not os.environ.get("GOOGLE_API_KEY"):
     print("CRITICAL WARNING: GOOGLE_API_KEY environment variable is not set. (checked .env and system env). Gemini calls will fail.")

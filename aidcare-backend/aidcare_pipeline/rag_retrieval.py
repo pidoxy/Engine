@@ -4,6 +4,7 @@ import os
 import faiss
 import numpy as np # faiss returns numpy arrays for distances and indices
 from sentence_transformers import SentenceTransformer
+from typing import Dict, List, Any, Optional
 
 # --- Configuration for Model Name (can be overridden by environment variable) ---
 EMBEDDING_MODEL_NAME_RAG = os.getenv("EMBEDDING_MODEL_RAG", 'all-MiniLM-L6-v2')
@@ -104,6 +105,184 @@ def get_clinical_retriever() -> GuidelineRetriever:
         print(f"Clinical Retriever will use index: {idx_path}, metadata: {meta_path}")
         clinical_retriever_instance = GuidelineRetriever(index_path=idx_path, metadata_path=meta_path)
     return clinical_retriever_instance
+
+
+# --- Hybrid Knowledge Retriever (FAISS + Valyu) ---
+class HybridKnowledgeRetriever:
+    """
+    Intelligent hybrid retrieval combining local FAISS and Valyu AI-native search
+
+    Strategy:
+    - FAISS: Fast local guideline lookups (always used, offline-capable)
+    - Valyu: Real-time research, drug info, clinical trials (selective usage)
+    - Graceful degradation when Valyu unavailable
+    """
+
+    def __init__(
+        self,
+        faiss_retriever: GuidelineRetriever,
+        valyu_searcher: Optional[Any] = None
+    ):
+        """
+        Initialize hybrid retriever
+
+        Args:
+            faiss_retriever: Local FAISS retriever instance
+            valyu_searcher: Valyu searcher instance (optional)
+        """
+        self.faiss_retriever = faiss_retriever
+        self.valyu_searcher = valyu_searcher
+        self.valyu_enabled = valyu_searcher is not None
+
+        # Usage optimization
+        self.valyu_usage_rate = float(os.getenv("VALYU_USAGE_RATE", "0.2"))  # 20% of queries
+        self.query_count = 0
+
+        print(f"HybridKnowledgeRetriever initialized (Valyu {'enabled' if self.valyu_enabled else 'disabled'})")
+
+    def should_use_valyu(self, symptoms: List[str], mode: str = "chw") -> bool:
+        """
+        Determine if Valyu should be used for this query
+
+        Logic:
+        - Complex cases (3+ symptoms): Use Valyu
+        - Clinical mode: Always use Valyu
+        - Simple CHW cases: Random selection based on usage rate
+        - Valyu unavailable: Skip
+
+        Args:
+            symptoms: List of symptoms
+            mode: Triage mode ("chw" or "clinical")
+
+        Returns:
+            True if Valyu should be used
+        """
+        if not self.valyu_enabled:
+            return False
+
+        # Clinical mode always uses Valyu
+        if mode == "clinical":
+            return True
+
+        # Complex cases (3+ symptoms) use Valyu
+        if len(symptoms) >= 3:
+            return True
+
+        # For simple cases, use random selection based on usage rate
+        self.query_count += 1
+        use_valyu = (self.query_count % int(1 / self.valyu_usage_rate)) == 0
+
+        return use_valyu
+
+    def retrieve_multi_source(
+        self,
+        symptoms: List[str],
+        mode: str = "chw",
+        top_k: int = 3
+    ) -> Dict[str, Any]:
+        """
+        Retrieve knowledge from multiple sources (FAISS + Valyu)
+
+        Args:
+            symptoms: List of symptoms/conditions
+            mode: Triage mode ("chw" or "clinical")
+            top_k: Number of FAISS results to retrieve
+
+        Returns:
+            Dictionary with:
+            - faiss_results: Local guideline results
+            - valyu_results: Valyu search results (if used)
+            - merged_context: Formatted context for LLM
+            - knowledge_sources: Source statistics
+        """
+        print(f"HybridRetriever: Retrieving for symptoms={symptoms}, mode={mode}")
+
+        # Always get FAISS results (local, fast)
+        faiss_results = self.faiss_retriever.retrieve_relevant_guidelines(
+            symptoms_list=symptoms,
+            top_k=top_k
+        )
+
+        # Initialize response
+        response = {
+            "faiss_results": faiss_results,
+            "valyu_results": {},
+            "merged_context": "",
+            "knowledge_sources": {
+                "local_guidelines": len(faiss_results),
+                "pubmed_research": 0,
+                "drug_databases": 0,
+                "clinical_trials": 0
+            }
+        }
+
+        # Determine if we should use Valyu
+        use_valyu = self.should_use_valyu(symptoms, mode)
+
+        if use_valyu and self.valyu_searcher:
+            print("HybridRetriever: Querying Valyu for enrichment...")
+
+            try:
+                # Search medical literature
+                literature_results = self.valyu_searcher.search_medical_literature(
+                    query_terms=symptoms
+                )
+
+                # Search clinical guidelines
+                guideline_results = self.valyu_searcher.search_clinical_guidelines(
+                    symptoms=symptoms
+                )
+
+                # For clinical mode or if drugs mentioned, search drug info
+                drug_results = []
+                if mode == "clinical" or any(
+                    term in " ".join(symptoms).lower()
+                    for term in ["drug", "medication", "medicine", "pill"]
+                ):
+                    drug_results = self.valyu_searcher.search_drug_information(
+                        drug_names=symptoms  # Will be refined in actual usage
+                    )
+
+                # Store Valyu results
+                response["valyu_results"] = {
+                    "literature": literature_results,
+                    "guidelines": guideline_results,
+                    "drugs": drug_results
+                }
+
+                # Update source counts
+                response["knowledge_sources"]["pubmed_research"] = len(literature_results)
+                response["knowledge_sources"]["drug_databases"] = len(drug_results)
+                response["knowledge_sources"]["clinical_trials"] = len(guideline_results)
+
+                # Format for LLM context
+                valyu_context = self.valyu_searcher.format_for_gemini(response["valyu_results"])
+                response["merged_context"] = valyu_context
+
+                print(f"HybridRetriever: Valyu enrichment added ({len(literature_results)} articles, "
+                      f"{len(drug_results)} drugs, {len(guideline_results)} guidelines)")
+
+            except Exception as e:
+                print(f"HybridRetriever: Valyu query failed (graceful fallback): {e}")
+                # Graceful degradation - continue with FAISS only
+
+        else:
+            print("HybridRetriever: Using FAISS only (Valyu not triggered)")
+
+        return response
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Get retrieval statistics"""
+        stats = {
+            "valyu_enabled": self.valyu_enabled,
+            "query_count": self.query_count,
+            "valyu_usage_rate": self.valyu_usage_rate
+        }
+
+        if self.valyu_searcher:
+            stats["valyu_stats"] = self.valyu_searcher.get_stats()
+
+        return stats
 
 # --- Example Usage (for testing this module directly) ---
 if __name__ == "__main__":
