@@ -61,8 +61,8 @@ async def generate_speech(
         "text": truncated_text,
         "model_id": ELEVENLABS_MODEL,
         "voice_settings": {
-            "stability": 0.55,
-            "similarity_boost": 0.80,
+            "stability": 0.70,         # higher = steadier, less wavering (0.55 was too low)
+            "similarity_boost": 0.75,  # slight reduction prevents over-processed / tinny sound
             "style": 0.0,
             "use_speaker_boost": True,
         },

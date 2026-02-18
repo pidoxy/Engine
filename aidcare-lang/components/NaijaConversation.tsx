@@ -32,6 +32,9 @@ export default function NaijaConversation({ language, onCancel, onComplete }: Na
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // Tracks the index of the last message spoken — prevents double-playback
+  // when React re-renders (e.g. from setIsSpeaking) re-trigger the effect
+  const spokenIndexRef = useRef<number>(-1);
 
   // Initial greeting
   useEffect(() => {
@@ -48,10 +51,16 @@ export default function NaijaConversation({ language, onCancel, onComplete }: Na
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Auto-play TTS for new assistant messages
+  // Auto-play TTS for new assistant messages — fires once per message index
   useEffect(() => {
-    const lastMsg = messages[messages.length - 1];
-    if (lastMsg?.role === 'assistant' && lastMsg.shouldSpeak) {
+    const lastIndex = messages.length - 1;
+    const lastMsg = messages[lastIndex];
+    if (
+      lastMsg?.role === 'assistant' &&
+      lastMsg.shouldSpeak &&
+      lastIndex > spokenIndexRef.current   // guard: only speak each message once
+    ) {
+      spokenIndexRef.current = lastIndex;
       speakText(lastMsg.content, language, () => setIsSpeaking(true), () => setIsSpeaking(false));
     }
   }, [messages, language]);
