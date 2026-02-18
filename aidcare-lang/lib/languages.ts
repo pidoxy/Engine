@@ -102,7 +102,7 @@ export const LANGUAGES: Record<LanguageCode, Language> = {
     actionsLabel: 'Àwọn Ìgbésẹ̀ tí A Yàn',
     urgencyLabel: 'Ìpele Ewu',
     whisperCode: 'yo',
-    elevenLabsVoiceId: process.env.NEXT_PUBLIC_VOICE_YO || 'x86DtpnPPuq2BpEiKPRy',
+    elevenLabsVoiceId: process.env.NEXT_PUBLIC_VOICE_YO || '9Dbo4hEvXQ5l7MXGZFQA',
     accentColor: '#7c3aed',
     cardGradient: 'from-purple-900 via-violet-800 to-purple-700',
     speakCardLabel: 'Sọ ní Yorùbá',

@@ -14,7 +14,7 @@ ELEVENLABS_MODEL = "eleven_multilingual_v2"
 LANGUAGE_VOICE_IDS: dict[str, str] = {
     'en':  os.getenv("ELEVENLABS_VOICE_EN",  "EXAVITQu4vr4xnSDxMaL"), # Bella — English
     'ha':  os.getenv("ELEVENLABS_VOICE_HA",  "TBvIh5TNCMX6pQNIcWV8"), # Hausa voice
-    'yo':  os.getenv("ELEVENLABS_VOICE_YO",  "x86DtpnPPuq2BpEiKPRy"), # Yoruba voice
+    'yo':  os.getenv("ELEVENLABS_VOICE_YO",  "9Dbo4hEvXQ5l7MXGZFQA"), # Olufunmilola — Yoruba female
     'ig':  os.getenv("ELEVENLABS_VOICE_IG",  "kMy0Co9mV2JmuSM9VcRQ"), # Igbo voice
     'pcm': os.getenv("ELEVENLABS_VOICE_PCM", "8P18CIVcRlwP98FOjZDm"), # Naija Pidgin voice
 }
