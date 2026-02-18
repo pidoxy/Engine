@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { LanguageCode, NaijaMessage, RecordingState } from '../types';
 import { LANGUAGES } from '../lib/languages';
 import { continueConversation, processText, parseTriageResult } from '../lib/api';
-import { speakText } from '../lib/tts';
+import { speakText, stopCurrentAudio } from '../lib/tts';
 import SpeakButton from './SpeakButton';
 import type { NaijaTriageResult } from '../types';
 
@@ -36,30 +36,38 @@ export default function NaijaConversation({ language, onCancel, onComplete }: Na
   // when React re-renders (e.g. from setIsSpeaking) re-trigger the effect
   const spokenIndexRef = useRef<number>(-1);
 
-  // Initial greeting — also resets spokenIndexRef so the greeting always plays
+  // Initial greeting — speaks directly here rather than via a separate messages watcher.
+  // This is the only place the greeting TTS fires, eliminating the race condition where
+  // two effects (greeting + TTS watcher) both trigger speakText for the same message.
+  // Cleanup stops audio if the component unmounts (e.g. user cancels mid-greeting).
   useEffect(() => {
-    spokenIndexRef.current = -1;  // reset guard so index 0 plays fresh each time
+    spokenIndexRef.current = -1;  // reset so subsequent assistant messages play correctly
     const greeting: NaijaMessage = {
       role: 'assistant',
       content: lang.greeting,
       shouldSpeak: true,
     };
     setMessages([greeting]);
-  }, [lang.greeting]);
+    speakText(lang.greeting, language, () => setIsSpeaking(true), () => setIsSpeaking(false));
+
+    return () => {
+      stopCurrentAudio(); // clean up if component unmounts before greeting finishes
+    };
+  }, [lang.greeting, language]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Auto-play TTS for new assistant messages — fires once per message index
+  // Auto-play TTS for new assistant messages (NOT the greeting — that's handled above)
   useEffect(() => {
     const lastIndex = messages.length - 1;
     const lastMsg = messages[lastIndex];
     if (
       lastMsg?.role === 'assistant' &&
       lastMsg.shouldSpeak &&
-      lastIndex > spokenIndexRef.current   // guard: only speak each message once
+      lastIndex > spokenIndexRef.current   // guard: skip index 0 (greeting), speak each once
     ) {
       spokenIndexRef.current = lastIndex;
       speakText(lastMsg.content, language, () => setIsSpeaking(true), () => setIsSpeaking(false));
