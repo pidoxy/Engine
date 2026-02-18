@@ -36,8 +36,9 @@ export default function NaijaConversation({ language, onCancel, onComplete }: Na
   // when React re-renders (e.g. from setIsSpeaking) re-trigger the effect
   const spokenIndexRef = useRef<number>(-1);
 
-  // Initial greeting
+  // Initial greeting — also resets spokenIndexRef so the greeting always plays
   useEffect(() => {
+    spokenIndexRef.current = -1;  // reset guard so index 0 plays fresh each time
     const greeting: NaijaMessage = {
       role: 'assistant',
       content: lang.greeting,
