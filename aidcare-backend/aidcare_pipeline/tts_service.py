@@ -12,11 +12,11 @@ ELEVENLABS_MODEL = "eleven_multilingual_v2"
 # Voice IDs — fill these after auditing the ElevenLabs voice library
 # Navigate to elevenlabs.io/voice-library, filter by language, test & pick best voice
 LANGUAGE_VOICE_IDS: dict[str, str] = {
-    'en': os.getenv("ELEVENLABS_VOICE_EN", "EXAVITQu4vr4xnSDxMaL"),   # Bella — clear, professional
-    'ha': os.getenv("ELEVENLABS_VOICE_HA", "EXAVITQu4vr4xnSDxMaL"),   # Replace with Hausa voice
-    'yo': os.getenv("ELEVENLABS_VOICE_YO", "EXAVITQu4vr4xnSDxMaL"),   # Replace with Yoruba voice
-    'ig': os.getenv("ELEVENLABS_VOICE_IG", "EXAVITQu4vr4xnSDxMaL"),   # Replace with Igbo voice
-    'pcm': os.getenv("ELEVENLABS_VOICE_PCM", "EXAVITQu4vr4xnSDxMaL"), # Replace with Pidgin-friendly voice
+    'en':  os.getenv("ELEVENLABS_VOICE_EN",  "EXAVITQu4vr4xnSDxMaL"), # Bella — English
+    'ha':  os.getenv("ELEVENLABS_VOICE_HA",  "TBvIh5TNCMX6pQNIcWV8"), # Hausa voice
+    'yo':  os.getenv("ELEVENLABS_VOICE_YO",  "x86DtpnPPuq2BpEiKPRy"), # Yoruba voice
+    'ig':  os.getenv("ELEVENLABS_VOICE_IG",  "kMy0Co9mV2JmuSM9VcRQ"), # Igbo voice
+    'pcm': os.getenv("ELEVENLABS_VOICE_PCM", "8P18CIVcRlwP98FOjZDm"), # Naija Pidgin voice
 }
 
 MAX_CHARS = 2500  # Conservative limit per ElevenLabs tier
