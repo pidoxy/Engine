@@ -131,10 +131,11 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://127.0.0.1:3001",
         "http://localhost:3001",
-        "https://triage.theaidcare.com",  # Production custom domain
-        "https://lang.theaidcare.com",    # Naija language demo subdomain
-        "https://*.vercel.app",  # Vercel preview deployments
+        "https://triage.theaidcare.com",      # Production custom domain
+        "https://lang.theaidcare.com",        # Naija language demo subdomain
+        "https://aidcare-lang.vercel.app",    # Vercel production deployment
     ],
+    allow_origin_regex="https://.*\\.vercel\\.app",  # All Vercel preview deployments
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
