@@ -33,6 +33,9 @@ Pillow==11.1.0
 pdf2image==1.17.0
 pytesseract==0.3.13
 
+# OpenAI — Whisper API + GPT-4o/GPT-4o-mini
+openai==1.82.0
+
 # HTTP & Network
 requests==2.32.3
 httpx==0.28.1

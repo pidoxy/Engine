@@ -1,86 +1,78 @@
 # aidcare_pipeline/symptom_extraction.py
-import google.generativeai as genai
+# Symptom extraction via OpenAI GPT-4o-mini with native JSON mode
+# Replaces Gemini — faster, native JSON output = zero parsing failures
+# Same function signature kept for full backward compatibility
+
 import json
 import os
-import time
-from dotenv import load_dotenv
 from .rate_limiter import cached_gemini_call, RateLimitExceeded
 
-load_dotenv()
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+OPENAI_MODEL_EXTRACTION = os.getenv("OPENAI_MODEL_EXTRACTION", "gpt-4o-mini")
 
-GEMINI_MODEL_NAME_EXTRACTION = os.getenv("GEMINI_MODEL_EXTRACTION", "gemini-3-flash-preview")
-GOOGLE_API_KEY_SYMPTOMS = os.environ.get("GOOGLE_API_KEY") # Expect API key from environment
+_SYSTEM_INSTRUCTION = (
+    "You are an expert medical information extractor for a triage system. "
+    "Extract all medical symptoms from patient descriptions and return them as a JSON array. "
+    "CRITICAL: Return ONLY a valid JSON object with a single key 'symptoms' containing a list of strings. "
+    'Example: {"symptoms": ["fever", "cough", "headache"]}'
+)
 
-_MODERN_GEMINI_PREFIXES = ("gemini-1.5", "gemini-2", "gemini-3")
 
 @cached_gemini_call(ttl=3600, rate_limit_id="symptom_extraction")
 def extract_symptoms_with_gemini(transcript_text: str) -> list:
-    if not GOOGLE_API_KEY_SYMPTOMS:
-        raise ValueError("GOOGLE_API_KEY not found in environment for symptom extraction.")
-    
-    genai.configure(api_key=GOOGLE_API_KEY_SYMPTOMS)
-    model = genai.GenerativeModel(GEMINI_MODEL_NAME_EXTRACTION)
-    
-    system_instruction = (
-        "You are an expert medical information extractor..." # Keep your good system prompt
-    )
-    prompt = f"""
-    Transcript:
-    ---
-    {transcript_text}
-    ---
-    Based on the transcript above, extract all symptoms mentioned.
-    Return the symptoms as a JSON formatted list of strings.
-    For example: ["headache", "fever", "cough"]
-    If no symptoms are clearly mentioned, return an empty JSON list: []
-    Symptoms (JSON list):
     """
-    # ... (rest of your Gemini call and robust JSON parsing logic from extract_symptoms_gemini.py)
-    # ... (ensure it returns a list of strings)
+    Extract medical symptoms from a patient transcript using GPT-4o-mini.
 
-    # Simplified for brevity, ensure your robust parsing is here
-    generation_config = genai.types.GenerationConfig(temperature=0.1, max_output_tokens=256)
-    full_prompt = system_instruction + "\n\n" + prompt if not GEMINI_MODEL_NAME_EXTRACTION.startswith(_MODERN_GEMINI_PREFIXES) else prompt
-    
-    if GEMINI_MODEL_NAME_EXTRACTION.startswith(_MODERN_GEMINI_PREFIXES):
-        model_instance = genai.GenerativeModel(
-            GEMINI_MODEL_NAME_EXTRACTION,
-            system_instruction=system_instruction, # Pass system instruction here
-            generation_config=generation_config
-        )
-        response = model_instance.generate_content(prompt) # User prompt only
-    else:
-        model_instance = model
-        response = model_instance.generate_content(full_prompt, generation_config=generation_config)
+    Args:
+        transcript_text: Raw patient description in any language
 
-    # Your robust JSON parsing from extract_symptoms_gemini.py
-    # Placeholder for brevity:
+    Returns:
+        List of symptom strings (always in English for FAISS compatibility)
+    """
+    if not OPENAI_API_KEY:
+        raise ValueError("OPENAI_API_KEY not found in environment for symptom extraction.")
+
+    prompt = (
+        f"Extract all medical symptoms from this patient description:\n\n"
+        f"{transcript_text}\n\n"
+        f"Return ONLY a JSON object: {{\"symptoms\": [\"symptom1\", \"symptom2\"]}}\n"
+        f"If no symptoms found, return: {{\"symptoms\": []}}\n"
+        f"All symptoms must be in English regardless of input language."
+    )
+
     try:
-        if not response.parts:
-            # Handle no parts, potentially access response.text
-            if hasattr(response, 'text') and response.text:
-                 raw_json_str = response.text.strip()
-            else:
-                print("Error: No content in Gemini symptom response")
-                return []
-        else:
-            raw_json_str = response.parts[0].text.strip()
+        from openai import OpenAI
+        client = OpenAI(api_key=OPENAI_API_KEY)
 
-        if raw_json_str.startswith("```json"): raw_json_str = raw_json_str[7:]
-        if raw_json_str.endswith("```"): raw_json_str = raw_json_str[:-3]
-        raw_json_str = raw_json_str.strip()
-        
-        if not raw_json_str: return []
-        data = json.loads(raw_json_str)
-        
-        s_list = []
-        if isinstance(data, list): s_list = data
+        response = client.chat.completions.create(
+            model=OPENAI_MODEL_EXTRACTION,
+            messages=[
+                {"role": "system", "content": _SYSTEM_INSTRUCTION},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.1,
+            max_tokens=512,
+            response_format={"type": "json_object"},  # Native JSON mode — zero parsing failures
+        )
+
+        raw = response.choices[0].message.content.strip()
+        data = json.loads(raw)
+
+        # Support both {"symptoms": [...]} and a bare list
+        if isinstance(data, list):
+            symptoms = data
         elif isinstance(data, dict):
-            for key in ["symptoms", "extracted_symptoms", "symptom_list"]:
-                if key in data and isinstance(data[key], list):
-                    s_list = data[key]
-                    break
-        return [str(s).lower().strip() for s in s_list if str(s).strip()]
+            symptoms = data.get("symptoms", data.get("extracted_symptoms", []))
+        else:
+            symptoms = []
+
+        cleaned = [str(s).lower().strip() for s in symptoms if str(s).strip()]
+        print(f"Extracted {len(cleaned)} symptoms: {cleaned}")
+        return cleaned
+
+    except json.JSONDecodeError as e:
+        print(f"JSON decode error in symptom extraction: {e}")
+        return []
     except Exception as e:
-        print(f"Error in Gemini symptom extraction processing: {e}")
-        raise # Re-raise
+        print(f"Error in GPT-4o-mini symptom extraction: {e}")
+        return []

@@ -12,6 +12,14 @@ if __name__ == "__main__":
 
     print(f"Starting server on {host}:{port}")
 
+    # Create DB tables if DATABASE_URL is set (safe to run on every startup — create_all is idempotent)
+    if os.environ.get("DATABASE_URL"):
+        try:
+            from aidcare_pipeline.db_models import create_db_and_tables
+            create_db_and_tables()
+        except Exception as e:
+            print(f"WARNING: Could not create database tables: {e}")
+
     # Import uvicorn and run
     import uvicorn
     uvicorn.run("main:app", host=host, port=port, log_level="info")
