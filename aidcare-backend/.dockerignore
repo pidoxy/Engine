@@ -10,8 +10,12 @@ __pycache__/
 .venv/
 venv/
 .git/
-data/
 temp_audio/
+# Exclude raw source data but keep the built FAISS knowledge bases
+data/cho/
+data/chew/
+data/medical/
+data/source_documents/
 # guidelines_index.faiss
 # *.faiss
 *.mp3
