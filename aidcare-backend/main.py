@@ -32,9 +32,13 @@ from aidcare_pipeline.tts_service import generate_speech, get_voice_id
 from pydantic import BaseModel
 from fastapi.responses import Response
 
-from aidcare_pipeline import crud, db_models 
-from aidcare_pipeline.database import get_db, engine 
+from aidcare_pipeline import crud, db_models
+from aidcare_pipeline.database import get_db, engine
 from sqlalchemy.orm import Session
+
+# --- Copilot routers ---
+from aidcare_pipeline.copilot_router import router as copilot_router
+from aidcare_pipeline.admin_router import router as admin_router
 
 # --- Pydantic Model for Text Input ---
 class TranscriptInput(BaseModel):
@@ -119,6 +123,10 @@ async def startup_event():
 
     print("FastAPI app startup complete (check logs for retriever status).")
 
+# --- Include copilot routers ---
+app.include_router(copilot_router)
+app.include_router(admin_router)
+
 @app.on_event("shutdown")
 async def shutdown_event():
     print("FastAPI app shutting down.")
@@ -134,6 +142,7 @@ app.add_middleware(
         "https://triage.theaidcare.com",      # Production custom domain
         "https://lang.theaidcare.com",        # Naija language demo subdomain
         "https://aidcare-lang.vercel.app",    # Vercel production deployment
+        "https://aidcare-copilot.vercel.app",  # Copilot hackathon frontend
     ],
     allow_origin_regex="https://.*\\.vercel\\.app",  # All Vercel preview deployments
     allow_credentials=True,

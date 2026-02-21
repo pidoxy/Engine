@@ -20,6 +20,13 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"WARNING: Could not create database tables: {e}")
 
+        # Create copilot tables (Doctors, Shifts, Consultations, BurnoutScores, HandoverReports)
+        try:
+            from aidcare_pipeline.copilot_models import create_copilot_tables
+            create_copilot_tables()
+        except Exception as e:
+            print(f"WARNING: Could not create copilot database tables: {e}")
+
     # Import uvicorn and run
     import uvicorn
     uvicorn.run("main:app", host=host, port=port, log_level="info")
