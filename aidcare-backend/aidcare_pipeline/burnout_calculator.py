@@ -121,9 +121,6 @@ def calculate_cls(
 
     # ── 4. Consecutive recent shifts (past 24 h, excluding current) ──────────
     cutoff_24h = datetime.now(timezone.utc) - timedelta(hours=24)
-    all_recent = (
-        db.query(type(None))  # We query Shift directly below
-    )
     # Import here to avoid circular; copilot_models is already imported in crud
     from . import copilot_models as models
     recent_shifts = (
