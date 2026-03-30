@@ -1,81 +1,115 @@
 import os
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, JSON
+import uuid as uuid_lib
+from sqlalchemy import Column, String, Text, DateTime, ForeignKey, JSON, Boolean
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func # For server-side default timestamps
-from .database import Base, engine # Import Base and engine from our database.py
+from sqlalchemy.sql import func
+from .database import Base, engine
+
 
 # --- Patient Model ---
+# Mirrors Prisma Patient model (@@map("patients"))
+# id is the UUID string primary key — matches Prisma's @id @default(uuid())
 class Patient(Base):
     __tablename__ = "patients"
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    patient_uuid = Column(String(36), unique=True, index=True, nullable=False) # UUIDs are 36 chars
-    full_name = Column(String(255), index=True, nullable=True)
+
+    id = Column(String(36), primary_key=True, index=True)
+    first_name = Column(String(255), nullable=True)
+    last_name = Column(String(255), nullable=True)
+    phone_number = Column(String(50), nullable=True)
     date_of_birth = Column(DateTime, nullable=True)
     gender = Column(String(50), nullable=True)
-    # Add other fields like contact_info (JSON or separate table), address, etc.
+    is_active = Column(Boolean, default=True, nullable=False)
+    organization_id = Column(String(36), nullable=True)
+    created_by_id = Column(String(36), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    # Relationships: if a patient is deleted, their documents and sessions are also deleted
-    documents = relationship("PatientDocument", back_populates="patient", cascade="all, delete-orphan", lazy="selectin")
-    sessions = relationship("ConsultationSession", back_populates="patient", cascade="all, delete-orphan", lazy="selectin")
+    # Relationships
+    documents = relationship(
+        "PatientDocument", back_populates="patient",
+        cascade="all, delete-orphan", lazy="selectin"
+    )
+    consultations = relationship(
+        "Consultation", back_populates="patient",
+        cascade="all, delete-orphan", lazy="selectin"
+    )
+
+    @property
+    def full_name(self) -> str:
+        parts = [p for p in [self.first_name, self.last_name] if p]
+        return " ".join(parts) if parts else ""
 
     def __repr__(self):
-        return f"<Patient(patient_uuid='{self.patient_uuid}', name='{self.full_name}')>"
+        return f"<Patient(id='{self.id}', name='{self.full_name}')>"
+
 
 # --- Patient Document Model ---
+# Mirrors Prisma PatientDocument model (@@map("patient_documents"))
 class PatientDocument(Base):
     __tablename__ = "patient_documents"
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    patient_id = Column(Integer, ForeignKey("patients.id", ondelete="CASCADE"), nullable=False) # Ensure FK points to patients.id
-    document_uuid = Column(String(36), unique=True, index=True, nullable=False)
+
+    id = Column(String(36), primary_key=True, index=True)
+    patient_id = Column(String(36), ForeignKey("patients.id", ondelete="CASCADE"), nullable=False)
+    consultation_id = Column(String(36), ForeignKey("consultations.id"), nullable=True)
     original_filename = Column(String(255), nullable=False)
-    storage_path = Column(String(512), nullable=False) # Path in object storage or local filesystem
+    storage_path = Column(String(512), nullable=False)
     file_type = Column(String(100), nullable=True)
     extracted_text = Column(Text, nullable=True)
-    processing_status = Column(String(50), default="queued", nullable=False) # e.g., queued, processing, completed, failed
-    upload_timestamp = Column(DateTime(timezone=True), server_default=func.now())
-    processing_timestamp = Column(DateTime(timezone=True), nullable=True)
+    processing_status = Column(String(50), default="queued", nullable=False)
+    uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
+    processed_at = Column(DateTime(timezone=True), nullable=True)
     error_message = Column(Text, nullable=True)
 
     patient = relationship("Patient", back_populates="documents")
+    consultation = relationship("Consultation", back_populates="documents")
 
     def __repr__(self):
-        return f"<PatientDocument(document_uuid='{self.document_uuid}', filename='{self.original_filename}')>"
+        return f"<PatientDocument(id='{self.id}', filename='{self.original_filename}')>"
 
-# --- Consultation Session Model ---
-class ConsultationSession(Base):
-    __tablename__ = "consultation_sessions"
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    session_uuid = Column(String(36), unique=True, index=True, nullable=False)
-    patient_id = Column(Integer, ForeignKey("patients.id", ondelete="CASCADE"), nullable=False) # Ensure FK points to patients.id
-    mode = Column(String(50), nullable=False) # 'chw_triage' or 'clinical_support'
-    
-    timestamp_start = Column(DateTime(timezone=True), server_default=func.now())
-    # timestamp_end = Column(DateTime(timezone=True), nullable=True) # Optional
-    
-    audio_file_path = Column(String(512), nullable=True) # Path to stored audio (e.g., S3 URL or local path)
+
+# --- Consultation Model ---
+# Mirrors Prisma Consultation model (@@map("consultations"))
+# Replaces the old ConsultationSession model (was @@tablename "consultation_sessions")
+class Consultation(Base):
+    __tablename__ = "consultations"
+
+    id = Column(String(36), primary_key=True, index=True)
+    title = Column(String(255), default="New Consultation")
+    consultant_id = Column(String(36), nullable=True)
+    patient_id = Column(String(36), ForeignKey("patients.id", ondelete="CASCADE"), nullable=False)
+    mode = Column(String(50), nullable=False)  # 'CHW_TRIAGE' | 'CLINICAL_SUPPORT'
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    # AI pipeline fields
+    audio_file_path = Column(String(512), nullable=True)
     transcript_text = Column(Text, nullable=True)
-    manual_context_input = Column(Text, nullable=True) # For clinical mode
-
-    extracted_info_json = Column(JSON, nullable=True) 
+    manual_context_input = Column(Text, nullable=True)
+    extracted_info_json = Column(JSON, nullable=True)
     retrieved_docs_summary_json = Column(JSON, nullable=True)
     final_recommendation_json = Column(JSON, nullable=True)
 
-    patient = relationship("Patient", back_populates="sessions")
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    ended_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    patient = relationship("Patient", back_populates="consultations")
+    documents = relationship("PatientDocument", back_populates="consultation")
 
     def __repr__(self):
-        return f"<ConsultationSession(session_uuid='{self.session_uuid}', mode='{self.mode}')>"
+        return f"<Consultation(id='{self.id}', mode='{self.mode}')>"
 
 
-# Function to create tables (callable for initial setup or via Alembic)
+# Alias for backward compatibility within the Engine codebase
+ConsultationSession = Consultation
+
+
+# Function to create tables (for initial setup — Prisma handles migrations in production)
 def create_db_and_tables():
     print(f"Attempting to create database tables on engine: {engine.url}...")
-    # In a more complex app, you might want to ensure the DB itself exists,
-    # but for PostgreSQL, `create_all` typically works on an existing DB.
     try:
         Base.metadata.create_all(bind=engine)
-        print("Database tables checked/created successfully (if they didn't exist).")
+        print("Database tables checked/created successfully.")
     except Exception as e:
         print(f"Error creating database tables: {e}")
         print("Please ensure the database exists and the user has permissions.")
@@ -83,7 +117,5 @@ def create_db_and_tables():
 
 
 if __name__ == "__main__":
-    # This allows running `python -m aidcare_pipeline.db_models` from `aidcare-backend` root
-    # to create tables if your DATABASE_URL in .env is correctly set up.
     print("Running db_models.py directly to create tables...")
     create_db_and_tables()

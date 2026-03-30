@@ -64,13 +64,20 @@ class TTSRequest(BaseModel):
     language: str = 'en'
 
 class PatientCreate(BaseModel):
-    full_name: str | None = None
-    # add other fields for patient creation
+    # patient_uuid is the UUID assigned by the TypeScript API (Prisma patient.id)
+    patient_uuid: str
+    full_name: str | None = None   # convenience alias: "firstName lastName"
+    first_name: str | None = None
+    last_name: str | None = None
+    date_of_birth: str | None = None
+    gender: str | None = None
+    organization_id: str | None = None
 
 class PatientResponse(BaseModel):
-    patient_uuid: str
-    full_name: str | None
-    # ... other fields to return ...
+    id: str
+    first_name: str | None
+    last_name: str | None
+
     class Config:
         orm_mode = True
         
@@ -168,10 +175,28 @@ def get_clinical_retriever_dependency() -> GuidelineRetriever:
     return retriever
 
 # --- API Endpoints ---
-@app.post("/patients/", response_model=PatientResponse) # Example
-def create_new_patient(patient: PatientCreate, db: Session = Depends(get_db)):
-    # Check if patient with similar details exists if necessary
-    db_patient = crud.create_patient(db=db, full_name=patient.full_name)
+@app.post("/patients/", response_model=PatientResponse)
+def sync_patient(patient: PatientCreate, db: Session = Depends(get_db)):
+    """
+    Called by the TypeScript API after creating a patient in the shared PostgreSQL DB.
+    The patient already exists (created by Prisma) — we just acknowledge / look up.
+    If somehow not found, we create it as a fallback.
+    """
+    db_patient = crud.get_patient_by_id(db, patient_id=patient.patient_uuid)
+    if not db_patient:
+        # Fallback: patient may not be visible yet due to timing — create a stub
+        first = patient.first_name or (patient.full_name.split()[0] if patient.full_name else None)
+        last = patient.last_name or (
+            " ".join(patient.full_name.split()[1:]) if patient.full_name and len(patient.full_name.split()) > 1 else None
+        )
+        db_patient = crud.create_patient(
+            db=db,
+            patient_id=patient.patient_uuid,
+            first_name=first,
+            last_name=last,
+            gender=patient.gender,
+            organization_id=patient.organization_id,
+        )
     return db_patient
 
 # --- TRANSCRIPTION ONLY ---
@@ -758,32 +783,30 @@ async def upload_patient_document(
 
     original_filename = file.filename
     safe_filename_base = "".join(c if c.isalnum() or c in ['.', '_'] else '_' for c in original_filename)
-    doc_db_uuid_str = str(uuid.uuid4())
-    
+
     # Create a patient-specific subdirectory if it doesn't exist
-    patient_specific_docs_dir = os.path.join(UPLOADED_PATIENT_DOCS_DIR, db_patient.patient_uuid)
+    patient_specific_docs_dir = os.path.join(UPLOADED_PATIENT_DOCS_DIR, db_patient.id)
     os.makedirs(patient_specific_docs_dir, exist_ok=True)
-    
+
     # Filename for storage on disk might include its own UUID or just be the safe name within patient folder
-    storage_filename_on_disk = f"{int(time.time())}_{safe_filename_base}" 
+    storage_filename_on_disk = f"{int(time.time())}_{safe_filename_base}"
     file_path_on_server = os.path.join(patient_specific_docs_dir, storage_filename_on_disk)
 
     try:
         with open(file_path_on_server, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-        
+
         # Create PatientDocument record in DB
         db_document = crud.create_patient_document(
-            db=db, 
-            patient_id=db_patient.id, 
-            document_uuid=doc_db_uuid_str, # Pass the generated UUID for the document record
+            db=db,
+            patient_id=db_patient.id,
             original_filename=original_filename,
-            storage_path=file_path_on_server, # Store the actual disk path (or S3 key later)
+            storage_path=file_path_on_server,
             file_type=file.content_type
         )
-        db.commit() # Commit the new document record
-        
-        print(f"Document for patient {db_patient.patient_uuid} saved to {file_path_on_server} (DB Doc UUID: {db_document.document_uuid})")
+        db.commit()
+
+        print(f"Document for patient {db_patient.id} saved to {file_path_on_server} (DB Doc ID: {db_document.id})")
 
         # Schedule background processing
         background_tasks.add_task(
