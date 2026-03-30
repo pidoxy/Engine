@@ -1,0 +1,360 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  justify-content: flex-start;
+  z-index: 999;
+  cursor: pointer;
+}
+
+.sidebar {
+  cursor: default;
+  width: 80%;
+  height: 100%;
+  background-color: hsl(0, 0%, 95%);
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  transition: transform 0.3s ease-in-out;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Desktop styles */
+@media (min-width: 1024px) {
+  .overlay {
+    position: fixed;
+    background: none;
+    cursor: default;
+    width: 320px;
+    min-width: 320px;
+    height: 100vh;
+    z-index: 999;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: 100vh;
+    background-color: #ffffff;
+    border-right: 1px solid #e5e7eb;
+    box-shadow: none;
+    position: sticky;
+    top: 0;
+    left: 0;
+  }
+}
+
+.sidebarTop {
+  display: flex;
+  flex-direction: column;
+  row-gap: 16px;
+  padding: 24px 20px;
+  border-bottom: 1px solid #E2E4E5;
+}
+
+@media (min-width: 1024px) {
+  .sidebarTop {
+    padding: 32px 24px;
+    row-gap: 20px;
+  }
+}
+
+.searchForm {
+  background-color: #ffffff;
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  color: #6B7280;
+  column-gap: 8px;
+  width: 100%;
+  margin: 0;
+  border: 1px solid #E1E1E1;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.searchForm:has(.searchInput:focus) {
+  color: #0F0F0F;
+  border-color: #6366F1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.searchButton {
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: #6B7280;
+  transition: color 0.2s ease;
+}
+
+.searchForm:has(.searchInput:focus) .searchButton {
+  color: #6366F1;
+}
+
+.searchInput {
+  outline: none;
+  flex: 1;
+  font-size: 0.875rem;
+  background: transparent;
+  border: none;
+  color: #374151;
+}
+
+.searchInput::placeholder {
+  color: #9CA3AF;
+}
+
+.createNewPatientBtn {
+  width: 100%;
+  margin: 0;
+  background-color: #6366F1;
+  color: #FFFFFF;
+  padding: 12px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.createNewPatientBtn:hover {
+  background-color: #4F46E5;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.onboardingBtn {
+  width: 100%;
+  margin: 0;
+  background-color: #10B981;
+  color: #FFFFFF;
+  padding: 12px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.onboardingBtn:hover {
+  background-color: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.sidebarMain {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 20px;
+  overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  .sidebarMain {
+    padding: 24px;
+  }
+}
+
+.patientListTitle {
+  color: #111827;
+  font-weight: 600;
+  font-size: 1.125rem;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+@media (min-width: 1024px) {
+  .patientListTitle {
+    font-size: 1.25rem;
+    margin-bottom: 20px;
+  }
+}
+
+.patientList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.patientList::-webkit-scrollbar {
+  width: 4px;
+}
+
+.patientList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.patientList::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 2px;
+}
+
+.patientList::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+.patientListItemButton {
+  padding: 12px 16px;
+  background-color: #F8F9FA;
+  border-radius: 8px;
+  color: #111827;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: 100%;
+  font-size: 0.875rem;
+}
+
+.patientListItemButton:hover {
+  background-color: #f3f4f6;
+  border-color: #e5e7eb;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+@media (min-width: 1024px) {
+  .patientListItemButton {
+    padding: 14px 18px;
+    font-size: 0.9rem;
+  }
+}
+
+.sidebarBottom {
+  margin-top: auto;
+  padding: 20px;
+  border-top: 1px solid #e5e7eb;
+  background-color: #fafafa;
+}
+
+@media (min-width: 1024px) {
+  .sidebarBottom {
+    padding: 24px;
+    background-color: #f9fafb;
+  }
+}
+
+.userSection {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin: 0 0 16px 0;
+  padding: 0;
+}
+
+@media (min-width: 1024px) {
+  .userSection {
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+}
+
+.userAvatar {
+  padding: 12px;
+  background-color: #6366F1;
+  border-radius: 50%;
+  font-size: 1.25rem;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 44px;
+}
+
+@media (min-width: 1024px) {
+  .userAvatar {
+    padding: 14px;
+    font-size: 1.5rem;
+    min-width: 48px;
+    height: 48px;
+  }
+}
+
+.userDetails {
+  flex: 1;
+  min-width: 0;
+}
+
+.userName {
+  font-weight: 600;
+  color: #111827;
+  font-size: 0.875rem;
+  margin: 0 0 2px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (min-width: 1024px) {
+  .userName {
+    font-size: 0.9rem;
+  }
+}
+
+.userRole {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #6B7280;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (min-width: 1024px) {
+  .userRole {
+    font-size: 0.8rem;
+  }
+}
+
+.logOutBtn {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin: 0;
+  color: #DC2626;
+  font-size: 0.875rem;
+  font-weight: 500;
+  gap: 8px;
+  padding: 12px 16px;
+  cursor: pointer;
+  background: none;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  justify-content: center;
+}
+
+.logOutBtn:hover, .logOutBtn:focus {
+  color: #B91C1C;
+  background-color: #fef2f2;
+  border-color: #fca5a5;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.1);
+}
+
+@media (min-width: 1024px) {
+  .logOutBtn {
+    padding: 14px 18px;
+    font-size: 0.9rem;
+  }
+}

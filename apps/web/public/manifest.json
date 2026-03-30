@@ -1,0 +1,22 @@
+{
+  "name": "AidCare - AI-Powered Healthcare Support",
+  "short_name": "AidCare",
+  "description": "AI-Powered Healthcare Support for Communities & Clinicians",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#5865F2",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "16x16 32x32",
+      "type": "image/x-icon"
+    }
+  ]
+}

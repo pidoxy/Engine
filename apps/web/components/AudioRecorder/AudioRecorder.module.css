@@ -1,0 +1,55 @@
+.recorderContainer {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: #f9fafb;
+  border-radius: 0.5rem;
+  margin: 1rem auto;
+  max-width: 28rem;
+}
+
+.recordButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background-color: #6366F1;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.recordButton:hover:not(:disabled) {
+  background-color: #4F46E5;
+}
+
+.recordButton:disabled {
+  background-color: #9CA3AF;
+  cursor: not-allowed;
+}
+
+.recordButton.recording {
+  background-color: #EF4444;
+  animation: pulse 1.5s infinite;
+}
+
+.recordingIndicator {
+  color: #4B5563;
+  font-size: 0.875rem;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

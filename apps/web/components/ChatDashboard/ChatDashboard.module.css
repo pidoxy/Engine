@@ -1,0 +1,106 @@
+.mainContent {
+  padding-bottom: 80px; /* Space for the fixed input area */
+  height: calc(100vh - 80px); /* Full height minus input area */
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Desktop styles */
+@media (min-width: 1024px) {
+  .mainContent {
+    padding-bottom: 120px;
+    height: 100vh;
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+.collapsibleHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  margin: 1rem auto;
+  max-width: 28rem;
+  transition: background-color 0.2s;
+}
+
+@media (min-width: 1024px) {
+  .collapsibleHeader {
+    max-width: none;
+    margin: 1rem 0;
+  }
+}
+
+.collapsibleHeader:hover {
+  background-color: #f3f4f6;
+}
+
+.collapsibleContent {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+}
+
+.collapsibleContent.open {
+  max-height: 400px; /* Increased to accommodate more consultations */
+  overflow-y: auto;
+}
+
+.chevronIcon {
+  transition: transform 0.3s ease;
+}
+
+.chevronIcon.open {
+  transform: rotate(180deg);
+}
+
+.consultationItem {
+  transition: background-color 0.2s;
+  cursor: pointer;
+}
+
+.consultationItem:hover {
+  background-color: #f3f4f6;
+}
+
+.consultationMessage {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+}
+
+.multiLineInput {
+  width: 100%;
+  min-height: 48px;
+  max-height: 120px;
+  resize: none;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  font-size: 1rem;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+.inputArea {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Desktop input area styles */
+@media (min-width: 1024px) {
+  .inputArea {
+    flex-direction: row;
+    align-items: flex-end;
+  }
+}

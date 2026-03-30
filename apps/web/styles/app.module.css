@@ -1,0 +1,23 @@
+.sidebarBtn {
+  position: absolute;
+  font-size: 1.5rem;
+  padding: 14px;
+  background-color: #ffffff;
+  border-radius: 14px;
+  box-shadow: 5.92px 11.84px 23.68px 0px #D3D1D84D;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.sidebarBtn:hover,
+.sidebarBtn:focus {
+  transform: scale(0.995);
+  opacity: 0.8;
+}
+
+.activeSidebarBtn {
+  left: auto;
+  right: calc(4 * 0.25rem);
+}

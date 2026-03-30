@@ -1,86 +1,91 @@
-# Speech to Text Application
+# AidCare Engine
 
-This is a full-stack application that converts speech to text using FastAPI backend and React/React Native frontend.
+The AI/ML engine powering [theaidcare.com](https://theaidcare.com). This repo contains the Python FastAPI backend that handles all AI processing, plus the Next.js apps for the multilingual subdomain and triage PWA.
 
-## Backend Setup
+> **Full architecture docs:** see [ARCHITECTURE.md](./ARCHITECTURE.md)
 
-1. Navigate to the backend directory:
+---
+
+## What's in this repo
+
+| Folder | What it is | Deployed at |
+|--------|-----------|-------------|
+| `aidcare-backend/` | Python FastAPI — AI pipeline | Railway (`aidcare-triage-production.up.railway.app`) |
+| `aidcare-lang/` | Next.js — multilingual triage UI | Vercel (`lang.theaidcare.com`) |
+| `aidcare-pwa/` | Next.js — standalone triage PWA | Vercel (`triage.theaidcare.com`) |
+| `aidcare-copilot/` | Next.js — separate copilot project | Independent deployment |
+
+---
+
+## aidcare-backend (Python FastAPI)
+
+The AI engine. Handles: audio transcription, symptom extraction, triage recommendations, RAG retrieval from clinical guidelines, multilingual conversation, and TTS output.
+
+### Prerequisites
+- Python 3.11+
+- PostgreSQL database
+- OpenAI API key (Whisper + GPT-4o)
+- Google Gemini API key
+- ElevenLabs API key
+
+### Local setup
+
 ```bash
-cd backend
-```
-
-2. Create a virtual environment and activate it:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows, use: venv\Scripts\activate
-```
-
-3. Install dependencies:
-```bash
+cd aidcare-backend
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
+cp env.example .env   # fill in your API keys
+python start.py
 ```
 
-4. Run the FastAPI server:
+Server runs at `http://localhost:8000`
+
+### Key endpoints
+
+| Method | Path | What it does |
+|--------|------|-------------|
+| POST | `/transcribe` | Audio → text (Whisper) |
+| POST | `/process` | Text → symptoms + triage recommendation |
+| POST | `/naija/process_text/` | Multilingual text triage |
+| POST | `/naija/process_audio/` | Multilingual audio triage |
+| POST | `/naija/continue_conversation/` | Continue multilingual session |
+| POST | `/tts/generate` | Text → speech (ElevenLabs) |
+| GET | `/health` | Health check + rate limit stats |
+
+### Deployment (Railway)
+
+Deployed via Dockerfile. Railway config in `railway.json` — start command is `python start.py`.
+
+---
+
+## aidcare-lang (lang.theaidcare.com)
+
+Next.js app for multilingual triage in Hausa, Yoruba, Igbo, Pidgin, and English. Calls the Engine backend.
+
 ```bash
-uvicorn app.main:app --reload
-```
-
-The backend server will run on http://localhost:8000
-
-## Web Frontend Setup
-
-1. Navigate to the frontend directory:
-```bash
-cd frontend/web
-```
-
-2. Install dependencies:
-```bash
+cd aidcare-lang
 npm install
+cp .env.example .env.local   # set NEXT_PUBLIC_API_BASE_URL
+npm run dev
 ```
 
-3. Start the development server:
+---
+
+## aidcare-pwa (triage.theaidcare.com)
+
+Standalone triage PWA. Simpler interface — useful for low-bandwidth or direct CHW use without login.
+
 ```bash
-npm start
-```
-
-The web frontend will run on http://localhost:3000
-
-## Mobile App Setup
-
-1. Navigate to the mobile app directory:
-```bash
-cd frontend/mobile
-```
-
-2. Install dependencies:
-```bash
+cd aidcare-pwa
 npm install
+cp .env.example .env.local   # set NEXT_PUBLIC_API_BASE_URL
+npm run dev
 ```
 
-3. Start the development server:
-```bash
-npm start
-```
+---
 
-4. Run on your preferred platform:
-- For iOS: `npm run ios`
-- For Android: `npm run android`
-- For web: `npm run web`
+## Related repos
 
-## Features
-
-- Record audio from your microphone
-- Convert speech to text using Google's Speech Recognition API
-- Real-time transcription display
-- Modern Material-UI interface for web
-- Native mobile interface for iOS and Android
-- Cross-platform support
-
-## Requirements
-
-- Python 3.7+
-- Node.js 18+
-- Modern web browser with microphone access
-- iOS 13+ or Android 6+ for mobile app
-- Expo Go app for testing on physical devices
+- **Frontend** (theaidcare.com): [TheAidCare/frontend](https://github.com/TheAidCare/frontend)
+- **Backend API** (auth, patients, orgs): [TheAidCare/Backend](https://github.com/TheAidCare/Backend)

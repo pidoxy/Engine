@@ -1,0 +1,33 @@
+.header {
+  width: 90%;
+  margin: 0 auto;
+  padding: 1rem;
+  background-color: white;
+  border-bottom: 1px solid #e5e7eb;
+  /* position: sticky;
+  top: 0;
+  z-index: 10; */
+  max-width: 500px;
+}
+
+.patientInfo {
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.patientName {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.patientGender {
+  color: #6B7280;
+  font-size: 0.875rem;
+  padding: 0.25rem 0.75rem;
+  background-color: #F3F4F6;
+  border-radius: 9999px;
+} 

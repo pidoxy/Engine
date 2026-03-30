@@ -1,0 +1,96 @@
+version: "3.9"
+
+# AidCare — Local Development Stack
+# Run everything: docker compose up
+# Run specific service: docker compose up postgres engine
+
+services:
+
+  # ─── Infrastructure ───────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aidcare
+      POSTGRES_PASSWORD: aidcare_dev
+      POSTGRES_DB: aidcare
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aidcare"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─── Python AI Engine ─────────────────────────────────────────
+  engine:
+    build:
+      context: ./services/engine
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./services/engine/.env
+    environment:
+      DATABASE_URL: postgresql://aidcare:aidcare_dev@postgres:5432/aidcare
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./services/engine:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ─── TypeScript API ───────────────────────────────────────────
+  api:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./services/api/.env
+    environment:
+      DATABASE_URL: postgresql://aidcare:aidcare_dev@postgres:5432/aidcare
+      NODE_ENV: development
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./services/api:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ─── Next.js Frontend ─────────────────────────────────────────
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./apps/web/.env.local
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+      NEXT_PUBLIC_WEBSOCKET_URL: ws://localhost:4000
+      NEXT_PUBLIC_API_ENGINE_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+      - engine
+
+  # ─── Multilingual App ─────────────────────────────────────────
+  lang:
+    build:
+      context: ./apps/lang
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+    ports:
+      - "3001:3000"
+    depends_on:
+      - engine
+
+volumes:
+  postgres_data:

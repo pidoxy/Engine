@@ -1,0 +1,65 @@
+.container {
+  width: 90%;
+  margin: 0 auto;
+  max-width: 400px;
+  padding: 100px 0 50px;
+}
+
+.successImg {
+  width: 50%;
+  max-width: 250px;
+  margin: 0 auto 40px;
+}
+
+.mainContent {
+  text-align: center;
+  margin-bottom: 50px;
+}
+.mainContent > h1 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #101010;
+  margin-bottom: 8px;
+}
+.mainContent > p {
+  color: #878787;
+  font-weight: 500;
+}
+
+.inviteLinkContainer {
+  width: 100%;
+  display: flex;
+  margin-bottom: 15px;
+}
+
+.inviteLink {
+  outline: none;
+  padding: 8px;
+  padding-right: 15px;
+  border: 2px solid #C2C3CB;
+  flex: 2 1;
+  border-radius: 14px 0 0 14px;
+  color: #C2C3CB;
+}
+.inviteLinkButton {
+  flex-basis: 40%;
+  max-width: 160px;
+  background-color: #007AFF;
+  color: #FFFFFF;
+  font-weight: 500;
+  padding: 8px 0;
+  border-radius: 14px;
+  margin-left: -10px;
+  cursor: pointer;
+}
+
+.dashboardButton {
+  width: 100%;
+  text-align: center;
+  padding: 15px 0;
+  color: #FFFFFF;
+  background-color: #007AFF;
+  border-radius: 14px;
+  cursor: pointer;
+  font-weight: 600;
+}

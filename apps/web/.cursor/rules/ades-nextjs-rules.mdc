@@ -1,0 +1,42 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+- All components should be functional components using hooks.
+- Do not use Tailwind CSS for styling. All styling should be in CSS module files. For components, a folder should be created with the folder name being the component name ("Loader"), the folder should contain an `index.js` which is the main file of the component, and a `[ComponentName].module.css` file
+- All event handlers should be prefixed with `handle`. For example, `handleClick`.
+- Always use async/await for asynchronous operations.
+- Prefer arrow functions over function declarations.
+- By default, all clickable component (buttons, e.t.c) should have a `cursor: pointer` or a way to make it obvious that the component is clickable.
+
+CSS Modules for Component-Scoped Styles
+
+- **File Naming:** Style files for a component should be named `[ComponentName].module.css` and be located in the same directory as the component file.
+  - For `src/components/Button/index.jsx`, the style file should be `src/components/Button/Button.module.css`.
+- **Importing:** Import CSS Modules using the `styles` object.
+  ```jsx
+  import styles from './MyComponent.module.css';
+  ```
+- **Class Naming:** Use `camelCase` for class names within your `.module.css` files.
+  ```css
+  /* Good: MyComponent.module.css */
+  .wrapper {
+    /* ... */
+  }
+  .userName {
+    /* ... */
+  }
+  ```
+- **Applying Classes:** Apply classes from the `styles` object.
+  ```jsx
+  <div className={styles.wrapper}>
+    <p className={styles.userName}>User</p>
+  </div>
+  ```
+
+### General Component Structure
+
+- **Component Files:** All new components should be created in the `components/` directory.
+
+- **File Structure:** A component folder named after the `ComponentName` should contain the component file (`index.jsx`) and its corresponding style file (`ComponentName.module.css`) if needed.

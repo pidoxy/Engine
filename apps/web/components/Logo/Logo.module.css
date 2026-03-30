@@ -1,0 +1,28 @@
+.logoContainer {
+  width: 80%;
+  margin: 0 auto;
+  max-width: 350px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  column-gap: 8px;
+  margin-top: max(calc(20dvh - 5%), 50px);
+  margin-bottom: 30px;
+  transition: all 0.3s ease-in-out;
+}
+
+.compact {
+  margin-top: 2rem;
+  margin-bottom: 1.5rem;
+  max-width: 200px;
+}
+
+.nameLogo {
+  flex: 1;
+  max-width: 120px;
+}
+
+.dots {
+  width: 40px;
+  height: 40px;
+}

@@ -1,0 +1,96 @@
+.container {
+  width: 90%;
+  margin: 0 auto;
+  max-width: 400px;
+  padding: 50px 0;
+}
+
+.heading {
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.25;
+  margin-bottom: 40px;
+}
+
+.formLayout {
+  margin-bottom: 80px;
+}
+
+.formInputLayout {
+  margin-bottom: 30px;
+}
+
+.formInputContainer {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 25px 20px;
+  padding-right: 10px;
+  border-radius: 2px;
+  border: 2px solid transparent;
+  font-weight: 500;
+}
+
+.formInputField {
+  flex: 2 1;
+  outline: none;
+  font-weight: 500;
+}
+
+select.formInputField {
+  cursor: pointer;
+}
+
+.formInputContainer:has(input:focus),
+.formInputContainer:has(select:focus) {
+  border-color: #C2C3CB;
+  color: initial;
+}
+
+.formSubmitButton {
+  width: 100%;
+  text-align: center;
+  padding: 20px 0;
+  background-color: #007bff;
+  color: #ffffff;
+  cursor: pointer;
+  border-radius: 14px;
+  font-weight: 500;
+}
+.formSubmitButton:hover {
+  background-color: #0059b3;
+}
+
+.loginRedirectContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
+}
+.loginRedirectContainer > p {
+  color: hsl(0, 0%, 60%);
+}
+.loginRedirectContainer > a {
+  text-decoration: underline;
+}
+
+
+
+/* ---------------------------------- */
+
+.headingContainer {
+  margin-bottom: 40px;
+}
+.headingContainer h1 {
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.25;
+  margin-bottom: 10px;
+}
+.headingContainer p {
+  font-size: .95rem;
+  font-weight: 500;
+  color: hsl(0, 0%, 60%);
+}
