@@ -1009,10 +1009,10 @@ async def tts_generate(tts_request: TTSRequest):
     OpenAI TTS proxy endpoint. Keeps the API key server-side.
     Returns raw audio/mpeg binary.
     """
-    if not os.environ.get("OPENAI_API_KEY"):
+    if not os.environ.get("ELEVENLABS_API_KEY"):
         raise HTTPException(
             status_code=503,
-            detail="TTS service is not configured. Please set OPENAI_API_KEY."
+            detail="TTS service is not configured. Please set ELEVENLABS_API_KEY."
         )
 
     if not tts_request.text or not tts_request.text.strip():
