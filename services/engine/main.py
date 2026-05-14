@@ -33,7 +33,7 @@ from pydantic import BaseModel
 from fastapi.responses import Response
 
 from aidcare_pipeline import crud, db_models
-from aidcare_pipeline.database import get_db, engine
+from aidcare_pipeline.database import get_db, engine, SessionLocal
 from sqlalchemy.orm import Session
 
 # --- Copilot routers ---
@@ -47,6 +47,11 @@ class TranscriptInput(BaseModel):
 class ConversationContinueInput(BaseModel):
     conversation_history: str
     latest_message: str
+
+
+class ClinicalSupportTextInput(BaseModel):
+    transcript_text: str
+    manual_context: str = ""
 
 # --- Naija (multilingual) Pydantic models ---
 class NaijaConversationInput(BaseModel):
@@ -173,6 +178,108 @@ def get_clinical_retriever_dependency() -> GuidelineRetriever:
         print("Error in dependency: Clinical Retriever not available in app_state.")
         raise HTTPException(status_code=503, detail="Clinical Support knowledge base not available. Please try again later.")
     return retriever
+
+
+def _build_clinical_retrieved_summary(retrieved_docs: list) -> list[dict]:
+    return [
+        {
+            "source_type": d.get("source_type"),
+            "source_name": d.get("source_document_name"),
+            "retrieved_content_hint": d.get("disease_info", {}).get("disease") or d.get("case") or "Guideline Entry",
+            "score": d.get("retrieval_score (distance)"),
+        }
+        for d in retrieved_docs
+    ]
+
+
+def _process_clinical_support_transcript(
+    transcript: str,
+    manual_context: str,
+    retriever: GuidelineRetriever,
+    db: Session | None = None,
+    patient_uuid: str | None = None,
+):
+    if not transcript or not transcript.strip():
+        raise HTTPException(status_code=400, detail="Transcript text cannot be empty.")
+
+    db_patient = None
+    db_session = None
+    patient_historical_document_texts: list[str] = []
+
+    if patient_uuid:
+        if db is None:
+            raise HTTPException(status_code=500, detail="Database session is required for patient-scoped clinical support.")
+
+        db_patient = crud.get_patient_by_uuid(db, patient_uuid=patient_uuid)
+        if not db_patient:
+            raise HTTPException(status_code=404, detail=f"Patient with UUID {patient_uuid} not found.")
+
+        db_session = crud.create_consultation_session(
+            db=db,
+            patient_id=db_patient.id,
+            mode="clinical_support",
+            transcript=transcript,
+            manual_context_input=manual_context,
+            session_uuid=str(uuid.uuid4()),
+        )
+
+        patient_historical_document_texts = [
+            doc.extracted_text
+            for doc in crud.get_patient_documents(db, patient_id=db_patient.id, limit=3)
+            if doc.extracted_text
+        ]
+
+    print("Clinical Support - Clinical Phase 3: Detailed Information Extraction...")
+    extracted_info = extract_detailed_clinical_information(transcript)
+    if isinstance(extracted_info, dict) and "error" in extracted_info:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Clinical Support: Detailed info extraction error: {extracted_info.get('error')}",
+        )
+    print("Clinical Support - Clinical Phase 3 Complete.")
+
+    query_terms_for_rag = extracted_info.get("presenting_symptoms", [])
+    if manual_context and manual_context.strip():
+        manual_context_keywords = [term for term in manual_context.lower().split() if len(term) > 2]
+        query_terms_for_rag = list(set(query_terms_for_rag + manual_context_keywords))
+
+    print(f"Clinical Support - Phase 4: Knowledge Retrieval with query terms: {query_terms_for_rag}...")
+    retrieved_docs = []
+    if query_terms_for_rag:
+        retrieved_docs = retriever.retrieve_relevant_guidelines(query_terms_for_rag, top_k=5)
+    print(f"Clinical Support - Phase 4 Complete. Retrieved {len(retrieved_docs)} documents.")
+
+    print("Clinical Support - Clinical Phase 5: Support Details Generation...")
+    support_details = generate_clinical_support_details(
+        extracted_clinical_info=extracted_info,
+        retrieved_knowledge_entries=retrieved_docs,
+        manual_context_supplement=manual_context,
+        patient_historical_document_texts=patient_historical_document_texts,
+    )
+    if isinstance(support_details, dict) and "error" in support_details:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Clinical Support: Failed to generate support details: {support_details.get('error')}",
+        )
+    print("Clinical Support - Clinical Phase 5 Complete.")
+
+    if db_session and db is not None:
+        crud.update_consultation_session_results(
+            db=db,
+            session_uuid=db_session.id,
+            extracted_info=extracted_info,
+            retrieved_docs=_build_clinical_retrieved_summary(retrieved_docs),
+            final_recommendation=support_details,
+        )
+
+    return {
+        "mode": "clinical_support" if patient_uuid else "clinical_support_no_patient_id",
+        "transcript": transcript,
+        "extracted_clinical_info": extracted_info,
+        "manual_context_provided": manual_context,
+        "retrieved_documents_summary": _build_clinical_retrieved_summary(retrieved_docs),
+        "clinical_support_details": support_details,
+    }
 
 # --- API Endpoints ---
 @app.post("/patients/", response_model=PatientResponse)
@@ -554,7 +661,7 @@ async def process_audio_for_triage(
 # Clinical Support Endpoint
 # --- Clinical Support Endpoint (MODIFIED - No patient_uuid in path initially) ---
 @app.post("/clinical_support/process_consultation/") # <--- REMOVED {patient_uuid} from path
-async def process_consultation_for_clinical_support(
+async def process_audio_for_clinical_support(
     # patient_uuid: str, # Removed from path parameters for now
     audio_file: UploadFile = File(...),
     manual_context: str = Form(""), 
@@ -577,80 +684,12 @@ async def process_consultation_for_clinical_support(
         if not transcript:
             raise HTTPException(status_code=500, detail="Clinical Support: Transcription failed or returned empty.")
         print(f"Clinical Support - Phase 2 Complete. Transcript snippet: {transcript[:100]}...")
-        
         print(f"Clinical Support - Manual Context Provided: '{manual_context if manual_context.strip() else 'None'}'")
-
-        # --- DB Operations (Make them conditional or skip for now if no patient_uuid) ---
-        # if db and patient_uuid_from_somewhere: # If you decide to pass patient_uuid via form data later
-        #     db_patient = crud.get_patient_by_uuid(db, patient_uuid=patient_uuid_from_somewhere)
-        #     if not db_patient:
-        #         print(f"Warning: Patient UUID {patient_uuid_from_somewhere} not found, proceeding without patient context for this session.")
-        #     else:
-        #         db_session = crud.create_consultation_session(
-        #             db=db, patient_id=db_patient.id, mode="clinical_support",
-        #             transcript=transcript, 
-        #             manual_context_input=manual_context,
-        #             session_uuid=session_uuid_str
-        #         )
-        # else:
-        #     print("Clinical Support: No patient UUID or DB session, session will not be saved to DB.")
-        # For now, we skip saving the session to DB if no patient_uuid is involved in the request path.
-        # ------------------------------------------------------------------------------------
-        
-        # Clinical Phase 3: Rich Information Extraction
-        print("Clinical Support - Clinical Phase 3: Detailed Information Extraction...")
-        extracted_info = extract_detailed_clinical_information(transcript)
-        if isinstance(extracted_info, dict) and "error" in extracted_info:
-             raise HTTPException(status_code=500, detail=f"Clinical Support: Detailed info extraction error: {extracted_info.get('error')}")
-        print(f"Clinical Support - Clinical Phase 3 Complete.")
-
-        query_terms_for_rag = extracted_info.get("presenting_symptoms", [])
-        if manual_context and manual_context.strip():
-            manual_context_keywords = [term for term in manual_context.lower().split() if len(term) > 2] 
-            query_terms_for_rag = list(set(query_terms_for_rag + manual_context_keywords))
-        
-        print("Clinical Support - Phase 4: Knowledge Retrieval...")
-        retrieved_docs = []
-        if query_terms_for_rag:
-            retrieved_docs = retriever.retrieve_relevant_guidelines(query_terms_for_rag, top_k=5)
-        print(f"Clinical Support - Phase 4 Complete. Retrieved {len(retrieved_docs)} documents.")
-
-        # patient_historical_document_texts will be empty as we don't have a patient_uuid here
-        patient_historical_document_texts = [] 
-
-        print("Clinical Support - Clinical Phase 5: Support Details Generation...")
-        support_details = generate_clinical_support_details(
-            extracted_clinical_info=extracted_info, 
-            retrieved_knowledge_entries=retrieved_docs,
-            manual_context_supplement=manual_context,
-            patient_historical_document_texts=patient_historical_document_texts # Will be empty for now
+        return _process_clinical_support_transcript(
+            transcript=transcript,
+            manual_context=manual_context,
+            retriever=retriever,
         )
-        if isinstance(support_details, dict) and "error" in support_details:
-            raise HTTPException(status_code=500, detail=f"Clinical Support: Failed to generate support details: {support_details.get('error')}")
-        print("Clinical Support - Clinical Phase 5 Complete.")
-
-        # --- DB Update (Conditional or skip for now) ---
-        # if db_session: # Only if a session was created
-        #     crud.update_consultation_session_results(
-        #         db=db, session_uuid=db_session.session_uuid, 
-        #         extracted_info=extracted_info, 
-        #         retrieved_docs=[{"source_type": d.get("source_type"), ...} for d in retrieved_docs],
-        #         final_recommendation=support_details
-        #     )
-        # ---------------------------------------------
-
-        return {
-            "mode": "clinical_support_no_patient_id", # Indicate it's a generic session
-            "transcript": transcript,
-            "extracted_clinical_info": extracted_info,
-            "manual_context_provided": manual_context,
-            "retrieved_documents_summary": [
-                {"source_type": d.get("source_type"), "source_name": d.get("source_document_name"),
-                 "retrieved_content_hint": d.get("disease_info", {}).get("disease") or d.get("case") or "Guideline Entry",
-                 "score": d.get("retrieval_score (distance)")} for d in retrieved_docs
-            ],
-            "clinical_support_details": support_details
-        }
     # ... (Keep your existing FileNotFoundError, ValueError, HTTPException, Exception, and finally blocks) ...
     except Exception as e:
         import traceback; traceback.print_exc()
@@ -659,22 +698,44 @@ async def process_consultation_for_clinical_support(
         if os.path.exists(file_path):
             try: os.remove(file_path)
             except Exception as e_rem: print(f"Error removing temp file {file_path}: {e_rem}")
-            
+
+
+@app.post("/clinical_support/process_text/")
+async def process_text_for_clinical_support(
+    transcript_input: ClinicalSupportTextInput,
+    retriever: GuidelineRetriever = Depends(get_clinical_retriever_dependency),
+):
+    return _process_clinical_support_transcript(
+        transcript=transcript_input.transcript_text,
+        manual_context=transcript_input.manual_context,
+        retriever=retriever,
+    )
+
+
+@app.post("/clinical_support/process_text/{patient_uuid}")
+async def process_text_for_clinical_support_for_patient(
+    patient_uuid: str,
+    transcript_input: ClinicalSupportTextInput,
+    db: Session = Depends(get_db),
+    retriever: GuidelineRetriever = Depends(get_clinical_retriever_dependency),
+):
+    return _process_clinical_support_transcript(
+        transcript=transcript_input.transcript_text,
+        manual_context=transcript_input.manual_context,
+        retriever=retriever,
+        db=db,
+        patient_uuid=patient_uuid,
+    )
+
+
 @app.post("/clinical_support/process_consultation/{patient_uuid}/")
-async def process_consultation_for_clinical_support(
-    patient_uuid: str = str,
+async def process_audio_for_clinical_support_for_patient(
+    patient_uuid: str,
     audio_file: UploadFile = File(...),
     manual_context: str = Form(""), 
     db: Session = Depends(get_db),
     retriever: GuidelineRetriever = Depends(get_clinical_retriever_dependency) # Uses clinical_retriever
 ):
-    # Get/Verify Patient
-    db_patient = crud.get_patient_by_uuid(db, patient_uuid=patient_uuid)
-    if not db_patient:
-        raise HTTPException(status_code=404, detail=f"Patient with UUID {patient_uuid} not found.")
-    
-    session_uuid_str = str(uuid.uuid4())
-    
     unique_suffix = f"{int(time.time() * 1000)}_consult_{audio_file.filename}" 
     file_path = os.path.join(TEMP_AUDIO_DIR, unique_suffix)
 
@@ -689,75 +750,14 @@ async def process_consultation_for_clinical_support(
         if not transcript: # Check if transcription returned None or empty
             raise HTTPException(status_code=500, detail="Clinical Support: Transcription failed or returned empty.")
         print(f"Clinical Support - Phase 2 Complete. Transcript snippet: {transcript[:100]}...")
-        
         print(f"Clinical Support - Manual Context Provided: '{manual_context if manual_context.strip() else 'None'}'")
-
-        db_session = crud.create_consultation_session(
-        db=db, patient_id=db_patient.id, mode="clinical_support",
-        transcript=transcript, 
-        manual_context_input=manual_context, # <--- SAVE IT
-        session_uuid=session_uuid_str
-    )
-        
-        # Clinical Phase 3: Rich Information Extraction
-        print("Clinical Support - Clinical Phase 3: Detailed Information Extraction...")
-        extracted_info = extract_detailed_clinical_information(transcript) # From clinical_info_extraction.py
-        if isinstance(extracted_info, dict) and "error" in extracted_info: # Check for error structure
-             raise HTTPException(status_code=500, detail=f"Clinical Support: Detailed info extraction error: {extracted_info.get('error')}")
-        print(f"Clinical Support - Clinical Phase 3 Complete.") # Log actual extracted_info for debugging if needed
-
-        # Formulate query terms for RAG from extracted info
-        query_terms_for_rag = extracted_info.get("presenting_symptoms", [])
-        # Optionally add other key terms:
-        # query_terms_for_rag.extend(extracted_info.get("key_examination_findings_verbalized", []))
-        # query_terms_for_rag = list(set(query_terms_for_rag)) # Remove duplicates
-
-        # If manual_context is provided, consider adding its keywords to the RAG query
-        if manual_context and manual_context.strip():
-            # Simple split; more advanced NLP could be used for keyword extraction from manual_context
-            manual_context_keywords = [term for term in manual_context.lower().split() if len(term) > 2] 
-            query_terms_for_rag = list(set(query_terms_for_rag + manual_context_keywords))
-        
-        # Phase 4: RAG Retrieval (using clinical retriever)
-        print(f"Clinical Support - Phase 4: Knowledge Retrieval with query terms: {query_terms_for_rag}...")
-        retrieved_docs = []
-        if query_terms_for_rag: # Only query if there are terms
-            retrieved_docs = retriever.retrieve_relevant_guidelines(query_terms_for_rag, top_k=5) # Use more docs for clinical
-        print(f"Clinical Support - Phase 4 Complete. Retrieved {len(retrieved_docs)} documents.")
-
-        # TODO: Fetch relevant patient_historical_document_texts for the *actual* patient_id.
-        # This requires patient_id to be part of the request and database integration.
-        # For now, we'll pass an empty list as a placeholder.
-        patient_historical_document_texts_placeholder = [] 
-        # Example of what it might look like later:
-        # patient_id_from_request = "some_patient_id_passed_in_request_body_or_path"
-        # patient_historical_document_texts = db_get_patient_document_texts(patient_id_from_request, limit=3)
-
-        # Clinical Phase 5: Clinical Support Details Generation
-        print("Clinical Support - Clinical Phase 5: Support Details Generation...")
-        support_details = generate_clinical_support_details( # From clinical_support_generation.py
-            extracted_clinical_info=extracted_info, 
-            retrieved_knowledge_entries=retrieved_docs,
-            manual_context_supplement=manual_context,
-            patient_historical_document_texts=patient_historical_document_texts_placeholder # Pass placeholder
+        return _process_clinical_support_transcript(
+            transcript=transcript,
+            manual_context=manual_context,
+            retriever=retriever,
+            db=db,
+            patient_uuid=patient_uuid,
         )
-        
-        if isinstance(support_details, dict) and "error" in support_details:
-            raise HTTPException(status_code=500, detail=f"Clinical Support: Failed to generate support details: {support_details.get('error')}")
-        print("Clinical Support - Clinical Phase 5 Complete.")
-
-        return {
-            "mode": "clinical_support",
-            "transcript": transcript,
-            "extracted_clinical_info": extracted_info,
-            "manual_context_provided": manual_context,
-            "retrieved_documents_summary": [
-                {"source_type": d.get("source_type"), "source_name": d.get("source_document_name"),
-                 "retrieved_content_hint": d.get("disease_info", {}).get("disease") or d.get("case") or "Guideline Entry",
-                 "score": d.get("retrieval_score (distance)")} for d in retrieved_docs
-            ],
-            "clinical_support_details": support_details
-        }
     except FileNotFoundError as e: raise HTTPException(status_code=404, detail=f"File processing error: {e}")
     except ValueError as e: raise HTTPException(status_code=400, detail=str(e)) # For things like API key issues
     except HTTPException: raise # Re-raise FastAPI's own HTTP exceptions
@@ -811,7 +811,8 @@ async def upload_patient_document(
         # Schedule background processing
         background_tasks.add_task(
             process_uploaded_document_task, # From aidcare_pipeline.document_processing
-            patient_uuid, 
+            SessionLocal,
+            db_document.id,
             file_path_on_server, 
             original_filename, 
             file.content_type
@@ -819,9 +820,11 @@ async def upload_patient_document(
         return {
             "message": "File uploaded successfully and is queued for processing.",
             "patient_id": patient_uuid, 
+            "document_id": db_document.id,
             "filename_on_server": file_path_on_server, # The name it's saved as on server
             "original_filename": original_filename, 
-            "content_type": file.content_type
+            "content_type": file.content_type,
+            "processing_status": db_document.processing_status,
         }
     except Exception as e:
         # Attempt to clean up partially saved file if error occurs during save
@@ -1003,13 +1006,13 @@ async def naija_process_audio(
 @app.post("/tts/generate/")
 async def tts_generate(tts_request: TTSRequest):
     """
-    ElevenLabs TTS proxy endpoint. Keeps the API key server-side.
+    OpenAI TTS proxy endpoint. Keeps the API key server-side.
     Returns raw audio/mpeg binary.
     """
-    if not os.environ.get("ELEVENLABS_API_KEY"):
+    if not os.environ.get("OPENAI_API_KEY"):
         raise HTTPException(
             status_code=503,
-            detail="TTS service is not configured. Please set ELEVENLABS_API_KEY."
+            detail="TTS service is not configured. Please set OPENAI_API_KEY."
         )
 
     if not tts_request.text or not tts_request.text.strip():
