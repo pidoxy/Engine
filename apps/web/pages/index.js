@@ -98,14 +98,20 @@ export default function Home() {
               <p className="mt-6 text-lg text-gray-600 max-w-2xl">
                 A dual-purpose system designed for frontline health workers and doctors to improve access, triage, and decision-making in Nigerian healthcare.
               </p>
-              <div className="mt-8">
-                <Link 
-                  href="/signup" 
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                <Link
+                  href="/signup"
                   className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-colors"
                   onClick={() => trackConversions.signupFromLanding()}
                 >
                   Sign Up
                   <IoArrowForward className="w-4 h-4" />
+                </Link>
+                <Link
+                  href="/triage"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-gray-300 text-gray-900 font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Try triage in your language
                 </Link>
               </div>
               <p className="mt-4 text-sm text-gray-500 flex items-center gap-2">
