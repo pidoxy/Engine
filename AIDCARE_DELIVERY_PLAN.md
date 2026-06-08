@@ -138,7 +138,8 @@ Rebuilt the socket layer in `chat.service.ts` from single-session to **room-base
 - each consultation is a room; `message`/`response`/`recentMessages` now broadcast to all participants (`io.to(room)`).
 - access relaxed from owner-only to **owner OR same-organization** — this is what lets a doctor join a CHW's case.
 - presence tracking + `presence`/`participantJoined`/`participantLeft` events; `joinConsultation`, `escalate`→`escalation`, and `typing` events.
-- **Works through the existing `ChatDashboard`**: a same-org doctor connecting with the same `consultationId` auto-joins and sees shared messages. Presence/typing/escalation are opt-in UI enhancements (frontend wiring is follow-up).
+- **Works through the existing `ChatDashboard`**: a same-org doctor connecting with the same `consultationId` auto-joins and sees shared messages.
+- ✅ **Collaboration UI wired** in `ChatDashboard`: a presence bar (who else is in the case), an "Escalate to clinician" button (`escalate` event), and an escalation notice banner (`escalation` event). `apps/web` build verified.
 
 ### 4.4 Retire donors (harvest-first) — 🟡 mostly done
 - ✅ `apps/lang` removed (tracked, fully ported to `/triage`).

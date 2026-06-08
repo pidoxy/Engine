@@ -87,6 +87,9 @@ const ChatDashboard = ({
   const [currentInference, setCurrentInference] = useState(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  // Live collaboration: who else is in this consultation room, and escalations
+  const [participants, setParticipants] = useState([]);
+  const [escalation, setEscalation] = useState(null);
   const [currentConsultationId, setCurrentConsultationId] = useState(propConsultationId);
   const [consultations, setConsultations] = useState([]);
   const [internalShowDefaultView, setInternalShowDefaultView] = useState(propShowDefaultView);
@@ -227,6 +230,15 @@ const ChatDashboard = ({
       }
     });
     
+    // Live collaboration: room presence + escalations from other participants
+    socket.on("presence", (data) => {
+      setParticipants(Array.isArray(data?.participants) ? data.participants : []);
+    });
+
+    socket.on("escalation", (data) => {
+      setEscalation(data || null);
+    });
+
     socket.on("disconnect", () => {
       console.log("WebSocket disconnected for patient:", patientId);
       setSocket(null);
@@ -242,6 +254,8 @@ const ChatDashboard = ({
       socket.off("consultationId");
       socket.off("message");
       socket.off("response");
+      socket.off("presence");
+      socket.off("escalation");
       socket.off("disconnect");
     };
   }, [token, patientId, patientData, setShowDefaultView, propConsultationId, router, isTriageEnabled]);
@@ -290,6 +304,14 @@ const ChatDashboard = ({
     transcriptRef.current = transcript;
     actuallySendMessage(transcript, inputText);
   };
+
+  // Escalate this case to clinicians — broadcasts to everyone in the room
+  const handleEscalate = () => {
+    if (socket) socket.emit('escalate', { note: null });
+  };
+
+  // Other participants in this consultation room (excluding myself)
+  const otherParticipants = participants.filter((p) => p.userId !== user?.id);
 
   // Send message through socket
   const actuallySendMessage = (transcript, manualContext) => {
@@ -353,6 +375,34 @@ const ChatDashboard = ({
 
         {patientData && (
           <PatientHeader patient={patientData} />
+        )}
+
+        {/* Live collaboration bar — presence, escalate, escalation notice */}
+        {currentConsultationId && (
+          <div className={styles.collabBar} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', padding: '0.5rem 0.75rem' }}>
+            {otherParticipants.length > 0 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', color: '#16a34a' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a', display: 'inline-block' }} />
+                {otherParticipants.map((p) => `${p.name}${p.role ? ` (${p.role.toLowerCase()})` : ''}`).join(', ')} in this case
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={handleEscalate}
+              disabled={!socket}
+              style={{ marginLeft: 'auto', padding: '0.35rem 0.75rem', borderRadius: 8, border: '1px solid #ea580c', color: '#ea580c', background: 'transparent', fontSize: '0.85rem', cursor: socket ? 'pointer' : 'not-allowed' }}
+            >
+              Escalate to clinician
+            </button>
+          </div>
+        )}
+
+        {escalation && (
+          <div role="alert" style={{ margin: '0 0.75rem 0.5rem', padding: '0.6rem 0.75rem', borderRadius: 8, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontSize: '0.85rem' }}>
+            ⚠️ Escalated by {escalation.by?.name || 'a participant'}
+            {escalation.by?.role ? ` (${String(escalation.by.role).toLowerCase()})` : ''}
+            {escalation.note ? ` — ${escalation.note}` : ''}
+          </div>
         )}
 
         {!showDefaultView && (
