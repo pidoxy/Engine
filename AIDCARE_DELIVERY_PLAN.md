@@ -122,22 +122,26 @@ Verified with a full `next build`: `/triage` route compiles and prerenders; Type
 
 ---
 
-## Phase 4 — Full workflow hardening (PRD §17 Phase 4)
+## Phase 4 — Full workflow hardening (PRD §17 Phase 4) — 🟡 IN PROGRESS
 
 **Goal:** continuity, documents, reporting, observability; retire donors.
 
-### 4.1 Replace mocked/disconnected outputs
-- `apps/web/components/ReportGenerator/index.js` — replace mock data with real consultation/AI data.
-- `apps/web/components/ChatDashboard/index.js` — confirm role-aware response handling against final contract.
+### 4.1 Replace mocked/disconnected outputs — ✅ done
+- `ReportGenerator` now uses real consultation/patient documents (no hardcoded mock list); `patient.service` includes consultation documents in its payload.
+- Public triage persistence added (see Phase 3.2 follow-up): `POST /api/v1/naija/sessions` stores anonymous assessments; `Consultation.patientId` made optional (migration `20260608010000_optional_consultation_patient`).
 
-### 4.2 Document-enriched clinical workflow
-End-to-end: upload (`apps/web/components/DocumentUploader/index.js`) → api → engine OCR → extracted text linked to patient/consultation → reused in later clinical-support calls (PRD §10.8).
+### 4.2 Document-enriched clinical workflow — 🟡 partial
+Upload → API → Engine OCR path is wired (Phase 2). Documents now surface in the consultation payload (4.1). Reusing extracted text inside subsequent clinical-support prompts is the remaining piece (Engine-side prompt assembly).
 
-### 4.3 Live collaboration (deferred until contract stable — PRD §16.1, backlog P2)
-Current realtime in `chat.service.ts` / `ChatDashboard` is single-session. Build room-based shared CHW↔doctor triage (presence, broadcasts, escalation) only after Phases 1–2 land, so it isn't built on moving IDs/roles.
+### 4.3 Live collaboration — ✅ backend done (PRD §16.1, backlog P2)
+Rebuilt the socket layer in `chat.service.ts` from single-session to **room-based**:
+- each consultation is a room; `message`/`response`/`recentMessages` now broadcast to all participants (`io.to(room)`).
+- access relaxed from owner-only to **owner OR same-organization** — this is what lets a doctor join a CHW's case.
+- presence tracking + `presence`/`participantJoined`/`participantLeft` events; `joinConsultation`, `escalate`→`escalation`, and `typing` events.
+- **Works through the existing `ChatDashboard`**: a same-org doctor connecting with the same `consultationId` auto-joins and sees shared messages. Presence/typing/escalation are opt-in UI enhancements (frontend wiring is follow-up).
 
-### 4.4 Retire donors (only after parity confirmed)
-Harvest then remove: `apps/lang`, `aidcare-pwa`, `aidcare-backend`, and duplicate root frontend folders (`pages/`, `components/`, `public/`, `styles/`, `utils/`, `lib/`, `context/`). Harvest KB-prep scripts + medical data assets from `aidcare-backend` into `services/engine` first (Backend plan Gap #6).
+### 4.4 Retire donors (only after parity confirmed) — ⏳ pending confirmation
+Harvest then remove: `apps/lang`, `aidcare-pwa`, `aidcare-backend`, and duplicate root frontend folders. Harvest KB-prep scripts + medical data assets from `aidcare-backend` into `services/engine` first (Backend plan Gap #6).
 
 **Phase 4 exit:** one core app, one backend boundary, no donor apps, real (non-mock) outputs, observability in place.
 

@@ -16,6 +16,75 @@ interface Session {
 
 const sessions = new Map<string, Session>();
 
+// ── Live collaboration: room-based presence ──────────────────────────────────
+// Multiple participants (e.g. a CHW and a joining doctor) can share one
+// consultation room and see each other's messages and presence in real time.
+
+interface Participant {
+  userId: string;
+  socketId: string;
+  name: string;
+  role: string;
+}
+
+// consultationId -> (socketId -> Participant)
+const rooms = new Map<string, Map<string, Participant>>();
+
+const roomName = (consultationId: string) => `consultation:${consultationId}`;
+
+const addParticipant = (consultationId: string, p: Participant) => {
+  const room = rooms.get(consultationId) ?? new Map<string, Participant>();
+  room.set(p.socketId, p);
+  rooms.set(consultationId, room);
+};
+
+const removeParticipant = (socketId: string) => {
+  for (const [consultationId, room] of rooms) {
+    if (room.delete(socketId)) {
+      if (room.size === 0) rooms.delete(consultationId);
+      return consultationId;
+    }
+  }
+  return undefined;
+};
+
+// Distinct participants by user (a user may have multiple sockets/tabs)
+const getPresence = (consultationId: string) => {
+  const room = rooms.get(consultationId);
+  if (!room) return [];
+  const byUser = new Map<string, { userId: string; name: string; role: string }>();
+  for (const p of room.values()) {
+    byUser.set(p.userId, { userId: p.userId, name: p.name, role: p.role });
+  }
+  return [...byUser.values()];
+};
+
+const broadcastPresence = (consultationId: string) => {
+  io.to(roomName(consultationId)).emit("presence", {
+    consultationId,
+    participants: getPresence(consultationId),
+  });
+};
+
+/**
+ * A user may access a consultation if they own it (consultant) or they belong
+ * to the same organization as the patient — this is what lets a doctor join a
+ * case a CHW started (PRD live-collaboration goal).
+ */
+const canAccessConsultation = async (
+  userOrgId: string | null,
+  userId: string,
+  consultation: { consultantId: string | null; patientId: string | null }
+): Promise<boolean> => {
+  if (consultation.consultantId === userId) return true;
+  if (!consultation.patientId) return false;
+  const patient = await prisma.patient.findUnique({
+    where: { id: consultation.patientId },
+    select: { organizationId: true },
+  });
+  return !!patient && !!userOrgId && patient.organizationId === userOrgId;
+};
+
 const getTriageResponse = async (
   message: string,
   manual_context: string,
@@ -81,10 +150,32 @@ export function startSocketServer(server: HttpServer): void {
       return;
     }
 
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, firstName: true, lastName: true, role: true, organizationId: true },
+    });
+    if (!user) { socket.emit("info", "User not found."); socket.disconnect(); return; }
+    const displayName = `${user.firstName} ${user.lastName}`.trim() || "Unknown";
+
+    // Join a consultation room: register presence and announce to other members.
+    const joinRoom = async (cid: string) => {
+      socket.join(roomName(cid));
+      sessions.set(socket.id, { consultationId: cid });
+      addParticipant(cid, { userId: user.id, socketId: socket.id, name: displayName, role: user.role });
+      socket.emit("consultationId", cid);
+      socket.to(roomName(cid)).emit("participantJoined", { userId: user.id, name: displayName, role: user.role });
+      broadcastPresence(cid);
+      socket.emit("recentMessages", await getLatestMessages(cid));
+    };
+
     if (consultationId && consultationId !== "undefined") {
       const consultation = await prisma.consultation.findUnique({ where: { id: consultationId } });
       if (!consultation) { socket.emit("info", "Consultation not found."); socket.disconnect(); return; }
-      if (consultation.consultantId !== userId) { socket.emit("info", "You don't have access to this consultation."); socket.disconnect(); return; }
+      if (!(await canAccessConsultation(user.organizationId, userId, consultation))) {
+        socket.emit("info", "You don't have access to this consultation.");
+        socket.disconnect();
+        return;
+      }
     }
 
     if (patientId && patientId !== "undefined") {
@@ -95,34 +186,43 @@ export function startSocketServer(server: HttpServer): void {
     if (!consultationId || consultationId === "undefined") {
       // New consultation will be created on startConsultation event
     } else {
-      sessions.set(socket.id, { consultationId });
-      socket.emit("consultationId", consultationId);
       const patient = await getPatientForConsultation(consultationId);
       socket.emit("info", `Welcome back! Continuing consultation for ${patient?.firstName} ${patient?.lastName}.`);
-      const messages = await getLatestMessages(consultationId);
-      socket.emit("recentMessages", messages);
+      await joinRoom(consultationId);
     }
+
+    // A clinician (e.g. doctor) joins an existing case started by someone else.
+    socket.on("joinConsultation", async (data: { consultationId: string }) => {
+      const cid = data?.consultationId;
+      if (!cid) { socket.emit("info", "consultationId is required to join."); return; }
+      const consultation = await prisma.consultation.findUnique({ where: { id: cid } });
+      if (!consultation) { socket.emit("info", "Consultation not found."); return; }
+      if (!(await canAccessConsultation(user.organizationId, userId!, consultation))) {
+        socket.emit("info", "You don't have access to this consultation.");
+        return;
+      }
+      await joinRoom(cid);
+    });
 
     socket.on("message", async (data: { transcript_text: string; manual_context: string; triage: boolean }) => {
       const session = sessions.get(socket.id);
       if (!session) { socket.emit("info", "Session not found. Please reconnect."); return; }
+      const room = roomName(session.consultationId);
 
       const userMessage = await addUserMessage(session.consultationId, data.transcript_text);
-      socket.emit("message", userMessage);
+      io.to(room).emit("message", userMessage);
 
       if (data.triage) {
         const { triageData, error } = await getTriageResponse(data.transcript_text, data.manual_context, patientId);
         if (error) { socket.emit("info", "Error processing your request. Please try again."); return; }
-        const systemResponse = await addSystemMessage(session.consultationId, triageData);
-        socket.emit("response", systemResponse);
+        io.to(room).emit("response", await addSystemMessage(session.consultationId, triageData));
       } else {
         const { clinicalData, error } = await getClinicalSupportResponse(data.transcript_text, data.manual_context, patientId);
         if (error) { socket.emit("info", "Error processing your request. Please try again."); return; }
-        const systemResponse = await addClinicalSystemMessage(session.consultationId, clinicalData);
-        socket.emit("response", systemResponse);
+        io.to(room).emit("response", await addClinicalSystemMessage(session.consultationId, clinicalData));
       }
 
-      socket.emit("recentMessages", await getLatestMessages(session.consultationId));
+      io.to(room).emit("recentMessages", await getLatestMessages(session.consultationId));
     });
 
     socket.on("startConsultation", async (data: { transcript_text: string; manual_context: string; triage: boolean }) => {
@@ -135,27 +235,56 @@ export function startSocketServer(server: HttpServer): void {
       socket.emit("info", "Creating a new consultation for you...");
       const consultation = await createConsultation(userId!, patientId);
       const newConsultationId = consultation.id;
-
-      sessions.set(socket.id, { consultationId: newConsultationId });
-      socket.emit("consultationId", newConsultationId);
+      await joinRoom(newConsultationId);
+      const room = roomName(newConsultationId);
 
       const userMessage = await addUserMessage(newConsultationId, data.transcript_text);
-      socket.emit("message", userMessage);
+      io.to(room).emit("message", userMessage);
 
       if (data.triage) {
         const { triageData, error } = await getTriageResponse(data.transcript_text, data.manual_context, patientId);
         if (error) { socket.emit("info", "Error processing your request. Please try again."); return; }
-        socket.emit("response", await addSystemMessage(newConsultationId, triageData));
+        io.to(room).emit("response", await addSystemMessage(newConsultationId, triageData));
       } else {
         const { clinicalData, error } = await getClinicalSupportResponse(data.transcript_text, data.manual_context, patientId);
         if (error) { socket.emit("info", "Error processing your request. Please try again."); return; }
-        socket.emit("response", await addClinicalSystemMessage(newConsultationId, clinicalData));
+        io.to(room).emit("response", await addClinicalSystemMessage(newConsultationId, clinicalData));
       }
 
-      socket.emit("recentMessages", await getLatestMessages(newConsultationId));
+      io.to(room).emit("recentMessages", await getLatestMessages(newConsultationId));
     });
 
-    socket.on("disconnect", () => { sessions.delete(socket.id); });
+    // CHW escalates a case to clinicians — broadcast to everyone in the room.
+    socket.on("escalate", (data: { note?: string }) => {
+      const session = sessions.get(socket.id);
+      if (!session) { socket.emit("info", "Session not found. Please reconnect."); return; }
+      io.to(roomName(session.consultationId)).emit("escalation", {
+        consultationId: session.consultationId,
+        by: { userId: user.id, name: displayName, role: user.role },
+        note: data?.note ?? null,
+        at: new Date().toISOString(),
+      });
+    });
+
+    // Typing indicator — relay to the other participants only.
+    socket.on("typing", (data: { isTyping: boolean }) => {
+      const session = sessions.get(socket.id);
+      if (!session) return;
+      socket.to(roomName(session.consultationId)).emit("typing", {
+        userId: user.id,
+        name: displayName,
+        isTyping: !!data?.isTyping,
+      });
+    });
+
+    socket.on("disconnect", () => {
+      sessions.delete(socket.id);
+      const cid = removeParticipant(socket.id);
+      if (cid) {
+        socket.to(roomName(cid)).emit("participantLeft", { userId: user.id, name: displayName, role: user.role });
+        broadcastPresence(cid);
+      }
+    });
   });
 }
 
