@@ -40,3 +40,21 @@ export const postJsonToEngine = async <T = unknown>(
   });
   return response.data as T;
 };
+
+/**
+ * Server-to-server JSON call to the Engine that returns binary (e.g. TTS audio).
+ * Returns the raw bytes plus the upstream content-type for pass-through.
+ */
+export const postJsonToEngineBinary = async (
+  enginePath: string,
+  body: unknown
+): Promise<{ data: Buffer; contentType: string }> => {
+  const response = await axios.post(`${ENGINE_URL}${enginePath}`, body, {
+    headers: { accept: "audio/mpeg", "Content-Type": "application/json" },
+    responseType: "arraybuffer",
+  });
+  return {
+    data: Buffer.from(response.data as ArrayBuffer),
+    contentType: (response.headers["content-type"] as string) || "audio/mpeg",
+  };
+};

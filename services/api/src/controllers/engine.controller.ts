@@ -1,7 +1,11 @@
 import type { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import catchAsync from "@/utils/catchAsync";
-import { streamMultipartToEngine } from "@/lib/engine";
+import {
+  streamMultipartToEngine,
+  postJsonToEngine,
+  postJsonToEngineBinary,
+} from "@/lib/engine";
 
 /**
  * Proxy endpoints that put the Engine behind the services/api boundary.
@@ -29,3 +33,40 @@ export const transcribeAudio = catchAsync(
     return res.status(StatusCodes.OK).json(data);
   }
 );
+
+// ── Multilingual (Naija) triage proxies ──────────────────────────────────────
+
+// POST /api/v1/naija/process_text  ->  Engine /naija/process_text/
+export const naijaProcessText = catchAsync(
+  async (req: Request, res: Response) => {
+    const data = await postJsonToEngine("/naija/process_text/", req.body);
+    return res.status(StatusCodes.OK).json(data);
+  }
+);
+
+// POST /api/v1/naija/continue_conversation  ->  Engine /naija/continue_conversation/
+export const naijaContinueConversation = catchAsync(
+  async (req: Request, res: Response) => {
+    const data = await postJsonToEngine("/naija/continue_conversation/", req.body);
+    return res.status(StatusCodes.OK).json(data);
+  }
+);
+
+// POST /api/v1/naija/process_audio  ->  Engine /naija/process_audio/
+export const naijaProcessAudio = catchAsync(
+  async (req: Request, res: Response) => {
+    const data = await streamMultipartToEngine(req, `/naija/process_audio/`);
+    return res.status(StatusCodes.OK).json(data);
+  }
+);
+
+// POST /api/v1/tts/generate  ->  Engine /tts/generate/  (returns audio/mpeg)
+export const ttsGenerate = catchAsync(async (req: Request, res: Response) => {
+  const { data, contentType } = await postJsonToEngineBinary(
+    "/tts/generate/",
+    req.body
+  );
+  res.setHeader("Content-Type", contentType);
+  res.setHeader("Cache-Control", "no-store");
+  return res.status(StatusCodes.OK).send(data);
+});

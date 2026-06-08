@@ -12,6 +12,8 @@ import organizationRouter from "@/routes/organization.router";
 import patientRouter from "@/routes/patient.router";
 import consultationRouter from "@/routes/consultation.router";
 import transcribeRouter from "@/routes/transcribe.router";
+import naijaRouter from "@/routes/naija.router";
+import ttsRouter from "@/routes/tts.router";
 import dotenv from "dotenv";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
@@ -62,6 +64,8 @@ app.use("/api/v1/organization", organizationRouter);
 app.use("/api/v1/patients", patientRouter);
 app.use("/api/v1/consultations", consultationRouter);
 app.use("/api/v1/transcribe", transcribeRouter);
+app.use("/api/v1/naija", naijaRouter);
+app.use("/api/v1/tts", ttsRouter);
 app.use("/", (req, res) => {
   res.json({
     success: true,
