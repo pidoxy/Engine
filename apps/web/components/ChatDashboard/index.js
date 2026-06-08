@@ -16,6 +16,54 @@ import DocumentUploader from '../DocumentUploader';
 import ConfirmationModal from '../ConfirmationModal';
 import ReportGenerator from '../ReportGenerator';
 import { useAppContext } from '@/context/AppContext';
+import {
+  normalizeChatMessage,
+  normalizeChatSender,
+  normalizeConsultation,
+  normalizePatient,
+} from '@/utils/contracts';
+import { getSavedToken } from '@/utils/auth';
+
+const getInferenceFromMessage = (message) => {
+  if (!message) return null;
+
+  const triageHasContent = message.triageData && (
+    message.triageData.triage_recommendation?.urgency_level ||
+    message.triageData.triage_recommendation?.summary_of_findings ||
+    message.triageData.triage_recommendation?.recommended_actions_for_chw?.length > 0
+  );
+
+  if (triageHasContent) {
+    return message.triageData;
+  }
+
+  const clinicalHasContent = message.clinicalData && (
+    message.clinicalData.clinical_support_details?.potential_conditions?.length > 0 ||
+    message.clinicalData.clinical_support_details?.suggested_investigations?.length > 0 ||
+    message.clinicalData.clinical_support_details?.alerts_and_flags?.length > 0
+  );
+
+  if (clinicalHasContent) {
+    return message.clinicalData;
+  }
+
+  return null;
+};
+
+const formatConsultations = (consultations = []) =>
+  consultations
+    .map(normalizeConsultation)
+    .filter(Boolean)
+    .map((consultation) => ({
+      id: consultation.id,
+      firstMessage: consultation.firstMessage,
+      date: consultation.createdAt
+        ? new Date(consultation.createdAt).toLocaleDateString()
+        : '',
+      time: consultation.createdAt
+        ? new Date(consultation.createdAt).toLocaleTimeString()
+        : '',
+    }));
 
 const ChatDashboard = ({ 
   children,
@@ -59,7 +107,8 @@ const ChatDashboard = ({
   const showDefaultView = propShowDefaultView ?? internalShowDefaultView;
 
   // Determine triage setting based on user role
-  const isTriageEnabled = user?.role === 'chw';
+  const isTriageEnabled =
+    user?.roleKey === 'COMMUNITY_HEALTH_WORKER' || user?.role === 'chw';
 
   const handleAudioClick = (startRecording) => {
     if (startRecording) {
@@ -76,16 +125,11 @@ const ChatDashboard = ({
       return;
     }
 
+    const normalizedPatient = normalizePatient(patientData);
+
     // Set up consultations from patient data
-    if (patientData.consultations && patientData.consultations.length > 0) {
-      const formattedConsultations = patientData.consultations.map(consultation => ({
-        id: consultation._id,
-        firstMessage: consultation.chats[0].userMessage || 'No messages',
-        date: new Date(consultation.createdAt).toLocaleDateString(),
-        time: new Date(consultation.createdAt).toLocaleTimeString()
-      }));
-      // console.log("Formatted consultations:", formattedConsultations);
-      setConsultations(formattedConsultations);
+    if (normalizedPatient?.consultations?.length > 0) {
+      setConsultations(formatConsultations(normalizedPatient.consultations));
       setShowDefaultView(false);
     } else {
       setShowDefaultView(true);
@@ -103,48 +147,20 @@ const ChatDashboard = ({
           });
           if (!res.ok) throw new Error('Failed to fetch consultation details');
           const data = await res.json();
-          console.log(data)
+          const consultation = normalizeConsultation(data.data?.consultation);
 
-          // Format and set messages from the consultation
-          if (data.data?.consultation?.messages) {
-            let lastInference = null;
-            const formattedMessages = data.data.consultation.messages.map(msg => {
-              if (msg.sender === 'user') {
-                return {
-                  timeSent: msg.createdAt,
-                  content: msg.userMessage
-                };
-              } else if (msg.sender === 'system') {
-                // Check the actual data structure to determine which inference to use
-                if (msg.triageData && msg.triageData.triage_recommendation && msg.triageData.triage_recommendation.urgency_level) {
-                  // This is a triage response
-                  lastInference = msg.triageData;
-                } else if (msg.clinicalData && msg.clinicalData.clinical_support_details && msg.clinicalData.clinical_support_details.potential_conditions) {
-                  // This is a clinical response
-                  lastInference = msg.clinicalData;
-                } else {
-                  // Fallback: check which data has more meaningful content
-                  const triageHasContent = msg.triageData && (
-                    msg.triageData.triage_recommendation?.urgency_level ||
-                    msg.triageData.triage_recommendation?.summary_of_findings ||
-                    msg.triageData.triage_recommendation?.recommended_actions_for_chw?.length > 0
-                  );
-                  
-                  const clinicalHasContent = msg.clinicalData && (
-                    msg.clinicalData.clinical_support_details?.potential_conditions?.length > 0 ||
-                    msg.clinicalData.clinical_support_details?.suggested_investigations?.length > 0 ||
-                    msg.clinicalData.clinical_support_details?.alerts_and_flags?.length > 0
-                  );
-                  
-                  if (triageHasContent) {
-                lastInference = msg.triageData;
-                  } else if (clinicalHasContent) {
-                    lastInference = msg.clinicalData;
-                  }
-                }
-              }
-            }).filter(Boolean);
-            console.log(lastInference)
+          if (consultation?.messages?.length) {
+            const formattedMessages = consultation.messages
+              .filter((message) => message.sender === 'user' && message.userMessage)
+              .map((message) => ({
+                timeSent: message.createdAt,
+                content: message.userMessage,
+              }));
+            const lastInference = consultation.messages.reduce((inference, message) => {
+              if (message.sender !== 'system') return inference;
+              return getInferenceFromMessage(message) ?? inference;
+            }, null);
+
             setCurrentInference(lastInference);
             setMessages(formattedMessages);
           }
@@ -175,18 +191,17 @@ const ChatDashboard = ({
     });
 
     socket.on("message", (data) => {
-      console.log("Message sent:", data);
-      if (data.sender === 'user') {
+      const message = normalizeChatMessage(data);
+      if (message?.sender === 'user') {
         setMessages(prev => [...prev, { 
-          timeSent: data.createdAt,
-          content: data.userMessage
+          timeSent: message.createdAt,
+          content: message.userMessage,
         }]);
       }
     });
 
     socket.on("response", (data) => {
-      console.log("Received response:", data);
-      if (data.sender === 'system') {
+      if (normalizeChatSender(data?.sender) === 'system') {
         const testId = data.consultationId;
         // If we have a new consultation ID and we're not already on a consultation page,
         // navigate to the consultation page after receiving the system response
@@ -195,8 +210,6 @@ const ChatDashboard = ({
           setIsProcessing(false);
           router.push(`/app/patient/${patientId}/consultation/${testId}`);
         }
-        console.log(data)
-        
         // Use user role to determine which data to display
         let inferenceData = null;
         if (isTriageEnabled) {
@@ -231,7 +244,7 @@ const ChatDashboard = ({
       socket.off("response");
       socket.off("disconnect");
     };
-  }, [token, patientId, setShowDefaultView, propConsultationId, router]);
+  }, [token, patientId, patientData, setShowDefaultView, propConsultationId, router, isTriageEnabled]);
 
   // Handle consultation ID changes separately
   useEffect(() => {
@@ -281,17 +294,17 @@ const ChatDashboard = ({
   // Send message through socket
   const actuallySendMessage = (transcript, manualContext) => {
     if (!socket) return;
-        setIsProcessing(true);
-          const messageData = {
+    setIsProcessing(true);
+    const messageData = {
       transcript_text: transcript,
-      consultant_note: manualContext,
-      triage: isTriageEnabled
-          };
+      manual_context: manualContext,
+      triage: isTriageEnabled,
+    };
     if (!currentConsultationId) {
-          socket.emit("startConsultation", messageData);
-        } else {
-          socket.emit("message", messageData);
-        }
+      socket.emit("startConsultation", messageData);
+    } else {
+      socket.emit("message", messageData);
+    }
     setInputText("");
     // Do not set isProcessing to false here; wait for websocket response
   };
@@ -784,9 +797,10 @@ const DefaultView = ({ onAudioClick, onMediaClick, patientId }) => {
       formData.append('file', file);
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_ENGINE_URL}/patients/${patientId}/upload_document/`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/patients/${patientId}/documents`,
         {
           method: 'POST',
+          headers: { Authorization: `Bearer ${getSavedToken()}` },
           body: formData,
         }
       );

@@ -6,9 +6,7 @@ import {
 import { verifyToken } from "@/middleware/auth.middleware";
 import { Server as HttpServer } from "http";
 import { prisma } from "@/lib/prisma";
-import axios from "axios";
-
-const ENGINE_URL = process.env.ENGINE_URL || "https://aidcare-triage-production.up.railway.app";
+import { postJsonToEngine } from "@/lib/engine";
 
 let io: Server;
 
@@ -24,12 +22,11 @@ const getTriageResponse = async (
   _patientId: string
 ): Promise<{ triageData: any; error: boolean }> => {
   try {
-    const response = await axios.post(
-      `${ENGINE_URL}/triage/process_text/`,
-      { transcript_text: message, manual_context },
-      { headers: { accept: "application/json", "Content-Type": "application/json" } }
-    );
-    return { triageData: response.data, error: false };
+    const triageData = await postJsonToEngine("/triage/process_text/", {
+      transcript_text: message,
+      manual_context,
+    });
+    return { triageData, error: false };
   } catch (error) {
     return { triageData: error, error: true };
   }
@@ -41,12 +38,11 @@ const getClinicalSupportResponse = async (
   patientId: string
 ): Promise<{ clinicalData: any; error: boolean }> => {
   try {
-    const response = await axios.post(
-      `${ENGINE_URL}/clinical_support/process_text/${patientId}`,
-      { transcript_text: message, manual_context },
-      { headers: { accept: "application/json", "Content-Type": "application/json" } }
+    const clinicalData = await postJsonToEngine(
+      `/clinical_support/process_text/${patientId}`,
+      { transcript_text: message, manual_context }
     );
-    return { clinicalData: response.data, error: false };
+    return { clinicalData, error: false };
   } catch (error) {
     return { clinicalData: error, error: true };
   }

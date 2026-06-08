@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { FaMicrophone, FaStop } from 'react-icons/fa';
 import styles from './AudioRecorder.module.css';
 import ConfirmationModal from '../ConfirmationModal';
+import { getSavedToken } from '@/utils/auth';
 
 const AudioRecorder = ({ onToggle, initialRecording = false, onTranscription }) => {
   const [isRecording, setIsRecording] = useState(initialRecording);
@@ -63,8 +64,9 @@ const AudioRecorder = ({ onToggle, initialRecording = false, onTranscription }) 
         formData.append('audio_file', audioFile);
         try {
           setIsProcessing(true);
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_ENGINE_URL}/transcribe/audio/`, {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/transcribe/audio`, {
             method: 'POST',
+            headers: { Authorization: `Bearer ${getSavedToken()}` },
             body: formData,
           });
           if (!response.ok) {

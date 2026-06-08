@@ -20,9 +20,6 @@ export default function Document() {
         {process.env.NEXT_PUBLIC_API_URL && (
           <link rel="preconnect" href={process.env.NEXT_PUBLIC_API_URL} crossOrigin="anonymous" />
         )}
-        {process.env.NEXT_PUBLIC_API_ENGINE_URL && (
-          <link rel="preconnect" href={process.env.NEXT_PUBLIC_API_ENGINE_URL} crossOrigin="anonymous" />
-        )}
         {process.env.NEXT_PUBLIC_WEBSOCKET_URL && (
           <link rel="preconnect" href={process.env.NEXT_PUBLIC_WEBSOCKET_URL.replace(/^ws(s)?:/, 'https:')} crossOrigin="anonymous" />
         )}

@@ -63,39 +63,32 @@ Current state of `packages/database/prisma/schema.prisma` (verified):
 
 ---
 
-## Phase 2 — Backend consolidation behind one boundary (PRD §17 Phase 2)
+## Phase 2 — Backend consolidation behind one boundary (PRD §17 Phase 2) — ✅ CORE COMPLETE (2026-06-08)
 
 **Goal:** frontend talks only to `services/api`; engine is internal.
 
-### 2.1 Make `services/api` the only frontend-facing backend
-- Audit every engine route the frontend currently hits directly; replace with api endpoints that proxy to the engine server-to-server.
-- Engine base URL (`ENGINE_URL`) lives only in api config, never in frontend env.
+### 2.1 Make `services/api` the only frontend-facing backend — ✅ done
+- The frontend previously called the Engine directly via `NEXT_PUBLIC_API_ENGINE_URL` in 3 places: `AudioRecorder` (transcription), `DocumentUploader` + `ChatDashboard` (document upload). All now call the API instead, with `Authorization: Bearer`.
+- Added a single Engine client `services/api/src/lib/engine.ts` (`ENGINE_URL`, `streamMultipartToEngine`, `postJsonToEngine`). Removed inline `ENGINE_URL`/axios from `chat.service.ts` and `patient.service.ts`.
+- Removed `NEXT_PUBLIC_API_ENGINE_URL` from `apps/web/.env.example` and the engine preconnect from `_document.js`. The browser can no longer reach the Engine.
 
-### 2.2 Fix the api→engine route wiring
-Engine route inventory (`services/engine/main.py`):
-- `/triage/process_text/`, `/triage/process_audio/`, `/triage/continue_conversation/`
-- `/clinical_support/process_consultation/`, `/clinical_support/process_text/`, `/clinical_support/process_text/{patient_uuid}`, `/clinical_support/process_consultation/{patient_uuid}/`
-- `/naija/process_text/`, `/naija/process_audio/`, `/naija/continue_conversation/`
-- `/tts/generate/`, `/transcribe/audio/`, `/patients/{patient_uuid}/upload_document/`
+### 2.2 Fix the api→engine route wiring — ✅ done (text paths); ⏳ multilingual deferred to Phase 3
+- Added API proxy endpoints (`services/api/src/controllers/engine.controller.ts`):
+  - `POST /api/v1/patients/:patientId/documents` → Engine `/patients/{id}/upload_document/`
+  - `POST /api/v1/transcribe/audio` → Engine `/transcribe/audio/` (`routes/transcribe.router.ts`)
+- Text triage (`/triage/process_text/`) and clinical support (`/clinical_support/process_text/{id}`) verified aligned in `chat.service.ts`.
+- **Deferred to Phase 3 (multilingual feature work):** proxying `/naija/*` and `/tts/generate/` — these land when multilingual UX is built.
 
-Status in `services/api/src/service/chat.service.ts`:
-- text triage → `/triage/process_text/` ✅ aligned
-- clinical support → `/clinical_support/process_text/${patientId}` ✅ now exists (main.py:715)
-- **TODO:** wire audio triage, naija (multilingual) routes, TTS, transcription, and document upload through api — these are not yet proxied.
+### 2.3 Engine document-upload background task — ✅ already correct
+Investigated `main.py` `/patients/{patient_uuid}/upload_document/`: the task args now match `process_uploaded_document_task` (db_provider, document_uuid, path, filename, content_type), and `create_patient_document` generates the `id` the task looks up by. Backend-plan Gap #4 was already resolved in code; the planning docs were stale. No change needed.
 
-### 2.3 Fix engine document-upload background task
-`services/engine/main.py` `/patients/{patient_uuid}/upload_document/` schedules a background OCR task whose args don't match the task signature (Backend plan Gap #4). Fix the call so async OCR is trustworthy.
+### 2.4 Resolve duplicate persistence — documented (no code change this phase)
+Ownership recorded in `BACKEND_CONTRACTS.md`: api + `packages/database` own shared records; engine keeps SQLAlchemy mirrors only where inference needs them (patient sync via `POST /patients/`); copilot tables stay engine-owned. Eliminating remaining dual-writes is follow-up work.
 
-### 2.4 Resolve duplicate persistence
-Decide and document ownership (PRD §11.1, §16.3):
-- api + `packages/database` own shared app records (patient/consultation/message/document).
-- engine keeps SQLAlchemy mirrors **only** where inference genuinely needs them; no dual writes to the same concept.
-- Copilot tables (`copilot_models.py`) stay engine-owned for now.
+### 2.5 Align env/docs with reality — ✅ done
+`services/engine/env.example` already reflects the real OpenAI + Gemini stack. Updated `apps/web/.env.example` to drop the engine URL and document the boundary rule.
 
-### 2.5 Align env/docs with reality
-Update `services/engine/env.example` and provider docs to reflect actual stack (OpenAI Whisper/GPT-4o(-mini), Azure Neural TTS + OpenAI fallback per recent commits, OCR). Backend plan Gap #5.
-
-**Phase 2 exit:** frontend has exactly one backend URL (api); engine is unreachable from the browser; upload OCR works; ownership documented.
+**Phase 2 exit — met for the core:** frontend has exactly one backend URL (api); engine is unreachable from the browser; document/transcription proxied; api typechecks clean. Multilingual route proxying intentionally rides with Phase 3.
 
 ---
 

@@ -11,6 +11,7 @@ import userRouter from "@/routes/user.router";
 import organizationRouter from "@/routes/organization.router";
 import patientRouter from "@/routes/patient.router";
 import consultationRouter from "@/routes/consultation.router";
+import transcribeRouter from "@/routes/transcribe.router";
 import dotenv from "dotenv";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
@@ -60,6 +61,7 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/organization", organizationRouter);
 app.use("/api/v1/patients", patientRouter);
 app.use("/api/v1/consultations", consultationRouter);
+app.use("/api/v1/transcribe", transcribeRouter);
 app.use("/", (req, res) => {
   res.json({
     success: true,

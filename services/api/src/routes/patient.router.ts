@@ -1,5 +1,6 @@
 import express from "express";
 import * as patientController from "@/controllers/patient.controller";
+import * as engineController from "@/controllers/engine.controller";
 import { validateRequest } from "@/utils/httpHandlers";
 import { authenticate } from "@/middleware/auth.middleware";
 import { createPatientSchema } from "@/validations/patient.validation";
@@ -29,5 +30,8 @@ router.post(
   validateRequest(createPatientSchema),
   patientController.createPatient
 );
+
+// Upload a patient document — proxied through the API to the Engine for OCR
+router.post("/:patientId/documents", engineController.uploadPatientDocument);
 
 export default router;
