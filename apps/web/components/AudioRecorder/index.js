@@ -9,8 +9,30 @@ const AudioRecorder = ({ onToggle, initialRecording = false, onTranscription }) 
   const [isProcessing, setIsProcessing] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
+  // Mic-permission / unsupported-browser fallback messaging (harvested from aidcare-pwa)
+  const [micError, setMicError] = useState('');
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
+
+  const isRecordingSupported = () =>
+    typeof navigator !== 'undefined' &&
+    !!navigator.mediaDevices?.getUserMedia &&
+    typeof MediaRecorder !== 'undefined';
+
+  const messageForMicError = (error) => {
+    switch (error?.name) {
+      case 'NotAllowedError':
+      case 'PermissionDeniedError':
+        return 'Microphone permission was denied. Enable it in your browser site settings and reload, or type your input instead.';
+      case 'NotFoundError':
+      case 'DevicesNotFoundError':
+        return 'No microphone found. Connect a microphone, or type your input instead.';
+      case 'NotReadableError':
+        return 'Your microphone is already in use by another app. Close it and try again, or type your input instead.';
+      default:
+        return 'Could not access the microphone. You can type your input instead.';
+    }
+  };
 
   useEffect(() => {
     if (isRecording) {
@@ -45,6 +67,12 @@ const AudioRecorder = ({ onToggle, initialRecording = false, onTranscription }) 
   };
 
   const startRecording = async () => {
+    if (!isRecordingSupported()) {
+      setMicError('Your browser does not support audio recording. Please type your input instead.');
+      setIsRecording(false);
+      return;
+    }
+    setMicError('');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream, {
@@ -86,6 +114,7 @@ const AudioRecorder = ({ onToggle, initialRecording = false, onTranscription }) 
       mediaRecorder.start();
     } catch (error) {
       console.error('Error accessing microphone:', error);
+      setMicError(messageForMicError(error));
       setIsRecording(false);
     }
   };
@@ -125,6 +154,11 @@ const AudioRecorder = ({ onToggle, initialRecording = false, onTranscription }) 
         {isProcessing && (
           <div className={styles.recordingIndicator}>
             Processing audio...
+          </div>
+        )}
+        {micError && (
+          <div className={styles.recordingIndicator} role="alert" style={{ color: '#d97706' }}>
+            {micError}
           </div>
         )}
       </div>

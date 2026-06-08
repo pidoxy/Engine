@@ -1,0 +1,68 @@
+{
+  "disease": "Tuberculosis",
+  "synonyms": [
+    "TB"
+  ],
+  "category": "Respiratory Medicine",
+  "description": "Tuberculosis is a chronic infectious disease caused by Mycobacterium tuberculosis, typically affecting the lungs but potentially involving any organ.",
+  "epidemiology": {
+    "prevalence": "Common in low-income and high-density populations, particularly in sub-Saharan Africa and Asia",
+    "risk_factors": [
+      "Close contact with TB patient",
+      "HIV/AIDS",
+      "Malnutrition",
+      "Overcrowded living conditions"
+    ]
+  },
+  "symptoms": [
+    "Chronic cough",
+    "Haemoptysis",
+    "Night sweats",
+    "Weight loss",
+    "Fever"
+  ],
+  "diagnosis": {
+    "clinical": [
+      "Chronic respiratory symptoms with constitutional signs"
+    ],
+    "investigations": [
+      "Chest X-ray: upper lobe infiltrates or cavitations",
+      "Sputum AFB microscopy and culture",
+      "Tuberculin skin test (TST) or IGRA",
+      "GeneXpert MTB/RIF"
+    ],
+    "differential_diagnosis": [
+      "Lung cancer",
+      "Fungal infections",
+      "Lymphoma",
+      "Sarcoidosis"
+    ]
+  },
+  "treatment": {
+    "first_line": [
+      "Rifampicin, Isoniazid, Pyrazinamide, Ethambutol for 2 months",
+      "Then Rifampicin and Isoniazid for 4 months"
+    ],
+    "supportive": [
+      "Nutritional support",
+      "HIV screening and ART if positive"
+    ],
+    "contraindications": {
+      "Rifampicin": "Hepatotoxicity, many drug interactions"
+    }
+  },
+  "preventive_measures": [
+    "BCG vaccination",
+    "Early case detection and treatment",
+    "Contact tracing",
+    "Ventilation in crowded spaces"
+  ],
+  "contextual_notes": {
+    "triage_alert": "Persistent cough >2 weeks with weight loss or haemoptysis requires urgent TB screening"
+  },
+  "source": {
+    "textbook": "Oxford Handbook of Clinical Medicine",
+    "edition": "11th",
+    "page_reference": "Chapter 4 \u2013 Chest Medicine, Tuberculosis section"
+  }
+}

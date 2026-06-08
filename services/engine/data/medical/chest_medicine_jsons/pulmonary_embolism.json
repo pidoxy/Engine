@@ -1,0 +1,68 @@
+{
+  "disease": "Pulmonary Embolism",
+  "synonyms": [
+    "PE"
+  ],
+  "category": "Respiratory Medicine",
+  "description": "PE is a blockage of a pulmonary artery by a thrombus, commonly originating from the deep veins of the legs.",
+  "epidemiology": {
+    "prevalence": "Relatively common and potentially fatal; associated with immobility, surgery, and cancer",
+    "risk_factors": [
+      "Immobility",
+      "Recent surgery",
+      "Cancer",
+      "Pregnancy",
+      "Thrombophilia"
+    ]
+  },
+  "symptoms": [
+    "Sudden onset dyspnoea",
+    "Pleuritic chest pain",
+    "Haemoptysis",
+    "Tachycardia",
+    "Syncope"
+  ],
+  "diagnosis": {
+    "clinical": [
+      "High index of suspicion with risk factors and symptoms"
+    ],
+    "investigations": [
+      "D-dimer (if low clinical suspicion)",
+      "CT pulmonary angiogram (CTPA)",
+      "Ventilation-perfusion scan (V/Q scan)",
+      "ECG: sinus tachycardia, S1Q3T3 pattern"
+    ],
+    "differential_diagnosis": [
+      "Myocardial infarction",
+      "Pneumonia",
+      "Pneumothorax",
+      "Aortic dissection"
+    ]
+  },
+  "treatment": {
+    "first_line": [
+      "Low-molecular-weight heparin (LMWH) or DOACs",
+      "Thrombolysis for massive PE"
+    ],
+    "supportive": [
+      "Oxygen",
+      "Fluids if hypotensive"
+    ],
+    "contraindications": {
+      "Thrombolysis": "Contraindicated in recent surgery or bleeding"
+    }
+  },
+  "preventive_measures": [
+    "VTE prophylaxis in hospital",
+    "Compression stockings",
+    "Early mobilization post-op"
+  ],
+  "contextual_notes": {
+    "triage_alert": "High Wells score or collapse mandates urgent imaging and anticoagulation"
+  },
+  "source": {
+    "textbook": "Oxford Handbook of Clinical Medicine",
+    "edition": "11th",
+    "page_reference": "Chapter 4 \u2013 Chest Medicine, PE section"
+  }
+}

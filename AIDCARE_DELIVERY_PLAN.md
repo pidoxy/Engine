@@ -140,8 +140,11 @@ Rebuilt the socket layer in `chat.service.ts` from single-session to **room-base
 - presence tracking + `presence`/`participantJoined`/`participantLeft` events; `joinConsultation`, `escalate`→`escalation`, and `typing` events.
 - **Works through the existing `ChatDashboard`**: a same-org doctor connecting with the same `consultationId` auto-joins and sees shared messages. Presence/typing/escalation are opt-in UI enhancements (frontend wiring is follow-up).
 
-### 4.4 Retire donors (only after parity confirmed) — ⏳ pending confirmation
-Harvest then remove: `apps/lang`, `aidcare-pwa`, `aidcare-backend`, and duplicate root frontend folders. Harvest KB-prep scripts + medical data assets from `aidcare-backend` into `services/engine` first (Backend plan Gap #6).
+### 4.4 Retire donors (harvest-first) — 🟡 mostly done
+- ✅ `apps/lang` removed (tracked, fully ported to `/triage`).
+- ✅ `aidcare-pwa` removed — its unique mic-permission/unsupported-browser fallback UX was harvested into `apps/web/components/AudioRecorder` first.
+- ✅ `aidcare-backend` removed — its unique medical KB data (`asthma`, `davidson`, `diabetes_mellitus`, `chest_medicine_jsons`, `idsr_all_diseases_combined`, endo/gastro zips) was copied into `services/engine/data/medical/`, and its KB-prep/transcription scripts into `services/engine/scripts/legacy/` (now tracked in git).
+- ⏳ **Root dup folders held back:** `pages/`, `components/`, `lib/`, `context/`, `utils/` are an OLD standalone `aidcare` Next app and are **content-divergent** from `apps/web` (not exact duplicates — 9 differing files in `pages/`, 6 in `components/`). Deleting them is unrecoverable, so this needs a deliberate diff/merge pass, not a blind delete.
 
 **Phase 4 exit:** one core app, one backend boundary, no donor apps, real (non-mock) outputs, observability in place.
 
