@@ -3,7 +3,7 @@ import * as patientController from "@/controllers/patient.controller";
 import { validateRequest } from "@/utils/httpHandlers";
 import { authenticate } from "@/middleware/auth.middleware";
 import { createPatientSchema } from "@/validations/patient.validation";
-import { patientConsultationSchema } from "@/validations/objectId.schema";
+import { patientConsultationSchema } from "@/validations/id.schema";
 
 const router = express.Router();
 

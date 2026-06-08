@@ -30,6 +30,14 @@ class UserController {
   public getLoggedInUser: RequestHandler<{}, any, any> = catchAsync(
     async (req: Request<{}, {}, any>, res: Response, _next: NextFunction) => {
       const id = req.user?.id;
+      if (!id) {
+        return res.status(401).json({
+          success: false,
+          message: "Authentication required",
+          data: null,
+          statusCode: 401,
+        });
+      }
       const serviceResponse = await userService.findById(id);
       return handleServiceResponse(serviceResponse, res);
     }
@@ -52,7 +60,7 @@ class UserController {
       res: Response,
       _next: NextFunction
     ) => {
-      const organizationId = req.user?.organization;
+      const organizationId = req.user?.organizationId;
 
       if (!organizationId) {
         return res.status(400).json({
@@ -64,7 +72,7 @@ class UserController {
       }
 
       const serviceResponse = await userService.findByOrganization(
-        organizationId.toString()
+        organizationId
       );
       return handleServiceResponse(serviceResponse, res);
     }
@@ -77,6 +85,14 @@ class UserController {
       _next: NextFunction
     ) => {
       const id = req.user?.id;
+      if (!id) {
+        return res.status(401).json({
+          success: false,
+          message: "Authentication required",
+          data: null,
+          statusCode: 401,
+        });
+      }
       const serviceResponse = await userService.update({
         body: req.body,
         id,

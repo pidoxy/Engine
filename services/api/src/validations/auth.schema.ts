@@ -1,6 +1,5 @@
 import z from "zod";
-import { UserRole } from "@/models/user.model";
-import { Types } from "mongoose";
+import { normalizeUserRoleInput } from "@/utils/contractTransforms";
 
 export const loginSchema = z.object({
   body: z.object({
@@ -91,19 +90,40 @@ export const registerUserSchema = z.object({
       passwordConfirm: z.string({
         required_error: "Password confirmation is required",
       }),
-      organization: z
+      organization: z.string().uuid("Invalid organization ID").optional(),
+      organizationId: z.string().uuid("Invalid organization ID").optional(),
+      role: z
         .string({
-          required_error: "Organization ID is required",
+          required_error:
+            "Role must be either 'consultant' or 'community health worker'",
         })
-        .refine(
-          (val) => Types.ObjectId.isValid(val),
-          "Invalid organization ID"
-        ),
-      role: z.enum([UserRole.CONSULTANT, UserRole.COMMUNITY_HEALTH_WORKER], {
-        required_error:
-          "Role must be either 'consultant' or 'community health worker'",
-      }),
+        .transform((value, ctx) => {
+          const normalized = normalizeUserRoleInput(value);
+          if (!normalized || normalized === "ORGANIZATION") {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message:
+                "Role must be either 'consultant' or 'community health worker'",
+            });
+            return z.NEVER;
+          }
+
+          return normalized;
+        }),
     })
+    .superRefine((data, ctx) => {
+      if (!data.organization && !data.organizationId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Organization ID is required",
+          path: ["organization"],
+        });
+      }
+    })
+    .transform(({ organization, organizationId, ...data }) => ({
+      ...data,
+      organization: organization ?? organizationId!,
+    }))
     .refine((data) => data.password === data.passwordConfirm, {
       message: "Passwords do not match",
       path: ["passwordConfirm"],

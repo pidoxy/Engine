@@ -13,7 +13,10 @@ export const createPatient = catchAsync(
     res: Response,
     _next: NextFunction
   ) => {
-    const serviceResponse = await patientService.create(req.body);
+    const serviceResponse = await patientService.create({
+      ...req.body,
+      createdBy: req.user?.id,
+    });
     return handleServiceResponse(serviceResponse, res);
   }
 );
@@ -23,7 +26,7 @@ export const createPatient = catchAsync(
  */
 export const getOrganizationPatients = catchAsync(
   async (req: Request, res: Response, _next: NextFunction) => {
-    const organizationId = req.user?.organization;
+    const organizationId = req.user?.organizationId;
 
     if (!organizationId) {
       return res.status(400).json({
@@ -35,7 +38,7 @@ export const getOrganizationPatients = catchAsync(
     }
 
     const serviceResponse = await patientService.getPatientsByOrganization(
-      organizationId.toString()
+      organizationId
     );
     return handleServiceResponse(serviceResponse, res);
   }

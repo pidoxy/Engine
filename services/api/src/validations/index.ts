@@ -17,9 +17,9 @@ export { createUserSchema, updateUserSchema } from "./user.schema";
 
 export type { TCreateUser, TUpdateUser, TUpdateUserModel } from "./user.schema";
 
-export { objectIdSchema } from "./objectId.schema";
+export { idParamSchema } from "./id.schema";
 
-export type { TObjectId } from "./objectId.schema";
+export type { TIdParam } from "./id.schema";
 
 export {
   createOrganizationSchema,

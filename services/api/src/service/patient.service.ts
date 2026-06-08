@@ -29,9 +29,12 @@ export class PatientService {
     axios
       .post(`${ENGINE_URL}/patients/`, {
         patient_uuid: patient.id,
+        first_name: patient.firstName,
+        last_name: patient.lastName,
         full_name: `${patient.firstName} ${patient.lastName}`,
-        dateOfBirth: patient.dateOfBirth,
+        date_of_birth: patient.dateOfBirth ? patient.dateOfBirth.toISOString() : null,
         gender: patient.gender,
+        organization_id: patient.organizationId,
       })
       .catch((err) => console.error("[Engine sync] Failed to create patient:", err.message));
 

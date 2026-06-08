@@ -1,4 +1,4 @@
-import { objectIdSchema } from "@/validations/objectId.schema";
+import { normalizeUserRoleInput } from "@/utils/contractTransforms";
 import z from "zod";
 
 export const createUserSchema = z.object({
@@ -23,7 +23,30 @@ export const createUserSchema = z.object({
       passwordConfirm: z.string({
         required_error: "Password Confirm is required",
       }),
+      role: z
+        .string()
+        .optional()
+        .transform((value, ctx) => {
+          if (!value) return undefined;
+
+          const normalized = normalizeUserRoleInput(value);
+          if (!normalized) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "Invalid role",
+            });
+            return z.NEVER;
+          }
+
+          return normalized;
+        }),
+      organization: z.string().uuid("Invalid organization ID").optional(),
+      organizationId: z.string().uuid("Invalid organization ID").optional(),
     })
+    .transform(({ organization, organizationId, ...data }) => ({
+      ...data,
+      organization: organization ?? organizationId,
+    }))
     .refine((data) => data.password === data.passwordConfirm, {
       path: ["passwordConfirm"],
       message: "Passwords do not match",

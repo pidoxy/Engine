@@ -12,6 +12,9 @@ export const getConsultationMessages = catchAsync(
   async (req: Request<{ id: string }>, res: Response, next: NextFunction) => {
     const { id: consultationId } = req.params;
     const requestingUserId = req.user?.id;
+    if (!requestingUserId) {
+      return next(new AppError("You are not logged in! Please log in to get access.", 401));
+    }
 
     const serviceResponse = await getAllMessagesInConsultation(
       consultationId,

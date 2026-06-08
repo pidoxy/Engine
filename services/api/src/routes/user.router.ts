@@ -1,10 +1,9 @@
 import UserController from "@/controllers/user.controller";
-import { authenticate, authorize } from "@/middleware/auth.middleware";
-import { objectIdSchema } from "@/validations/objectId.schema";
+import { authenticate } from "@/middleware/auth.middleware";
+import { idParamSchema } from "@/validations/id.schema";
 import { createUserSchema, updateUserSchema } from "@/validations/user.schema";
 import { validateRequest } from "@/utils/httpHandlers";
 import express, { type Router } from "express";
-import { UserRole } from "@/models/user.model";
 const userRouter: Router = express.Router();
 
 userRouter.post(
@@ -30,6 +29,6 @@ userRouter.put(
   UserController.updateUser
 );
 
-userRouter.get("/:id", validateRequest(objectIdSchema), UserController.getUser);
+userRouter.get("/:id", validateRequest(idParamSchema), UserController.getUser);
 
 export default userRouter;

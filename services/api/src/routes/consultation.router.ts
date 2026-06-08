@@ -2,7 +2,7 @@ import express from "express";
 import * as consultationController from "@/controllers/consultation.controller";
 import { authenticate } from "@/middleware/auth.middleware";
 import { validateRequest } from "@/utils/httpHandlers";
-import { objectIdSchema } from "@/validations/objectId.schema";
+import { idParamSchema } from "@/validations/id.schema";
 
 const router = express.Router();
 
@@ -12,7 +12,7 @@ const router = express.Router();
 router.get(
   "/:id/messages",
   authenticate,
-  validateRequest(objectIdSchema),
+  validateRequest(idParamSchema),
   consultationController.getConsultationMessages
 );
 

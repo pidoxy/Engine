@@ -1,5 +1,4 @@
-import { objectIdSchema } from "@/validations/objectId.schema";
-import { Types } from "mongoose";
+import { idParamSchema } from "@/validations/id.schema";
 import z from "zod";
 
 export const createOrganizationSchema = z.object({
@@ -13,9 +12,7 @@ export const createOrganizationSchema = z.object({
 
 export const updateOrganizationSchema = createOrganizationSchema.partial();
 
-export const organizationIdSchema = objectIdSchema;
-
-
+export const organizationIdSchema = idParamSchema;
 
 export const createOrganizationWithRootUserSchema = z.object({
   body: z

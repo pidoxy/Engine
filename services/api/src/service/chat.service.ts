@@ -21,11 +21,11 @@ const sessions = new Map<string, Session>();
 const getTriageResponse = async (
   message: string,
   manual_context: string,
-  patientId: string
+  _patientId: string
 ): Promise<{ triageData: any; error: boolean }> => {
   try {
     const response = await axios.post(
-      `${ENGINE_URL}/triage/process_text/${patientId}`,
+      `${ENGINE_URL}/triage/process_text/`,
       { transcript_text: message, manual_context },
       { headers: { accept: "application/json", "Content-Type": "application/json" } }
     );
