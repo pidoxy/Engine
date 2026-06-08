@@ -24,6 +24,13 @@ export default function TriagePage() {
   const handleConversationComplete = (result: NaijaTriageResult) => {
     setTriageResult(result);
     setPhase('results');
+    // Persist the completed assessment so it's not a dead-end (PRD §10.9).
+    // Fire-and-forget — never block showing the result.
+    void fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1/naija/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ language, result }),
+    }).catch(() => {});
   };
 
   const handleCancel = () => {

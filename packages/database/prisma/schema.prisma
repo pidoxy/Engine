@@ -112,8 +112,9 @@ model Consultation {
   title        String               @default("New Consultation")
   consultantId String?
   consultant   User?                @relation("ConsultantConsultations", fields: [consultantId], references: [id])
-  patientId    String
-  patient      Patient              @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  // Optional: public/anonymous triage sessions (PRD §9.3) have no linked patient
+  patientId    String?
+  patient      Patient?             @relation(fields: [patientId], references: [id], onDelete: Cascade)
   mode         ConsultationMode     @default(CHW_TRIAGE)
   language     ConsultationLanguage @default(EN)
   isActive     Boolean              @default(true)

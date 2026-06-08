@@ -102,6 +102,10 @@ export class PatientService {
           select: { id: true, sender: true, createdAt: true, triageData: true, clinicalData: true, userMessage: true },
           orderBy: { createdAt: "asc" },
         },
+        documents: {
+          select: { id: true, originalFilename: true, fileType: true, processingStatus: true, uploadedAt: true },
+          orderBy: { uploadedAt: "desc" },
+        },
       },
     });
     if (!consultation) return ServiceResponse.failure("Consultation not found", null, StatusCodes.NOT_FOUND);
