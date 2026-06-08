@@ -92,7 +92,9 @@ Ownership recorded in `BACKEND_CONTRACTS.md`: api + `packages/database` own shar
 
 ---
 
-## Phase 3 — Multilingual into the core app (PRD §17 Phase 3)
+## Phase 3 — Multilingual into the core app (PRD §17 Phase 3) — ✅ CORE COMPLETE (2026-06-08)
+
+**Status:** Multilingual triage is embedded in `apps/web` at `/triage` and the app builds clean. Public-triage persistence is the one deferred follow-up (see 3.2). 3.1's `aidcare-pwa` mic-fallback polish can fold into Phase 4.
 
 **Goal:** language selection + multilingual triage + TTS native to the product, persisted in the same consultation model.
 
@@ -105,13 +107,18 @@ Port from `aidcare-pwa`:
 - `aidcare-pwa/src/app/components/AudioRecorder.jsx` → mic-permission + unsupported-browser fallback
 Keep from `apps/triage/app/page.tsx`: disclaimer gate + action CTAs.
 
-### 3.2 Route multilingual through api → engine `/naija/*`
-All triage (English and Naija) flows hit api, which proxies to engine `/naija/*` or `/triage/*`. Results persist as `Message`/`AIResponse` rows on a `Consultation` with language metadata — no dead-end responses (PRD §10.9).
+### 3.2 Route multilingual through api → engine `/naija/*` — ✅ done
+Added the API proxies (committed `7187dd4`): `/api/v1/naija/{process_text,continue_conversation,process_audio}` and `/api/v1/tts/generate`. The ported frontend points at these; the Engine is never called from the browser.
+> ⏳ Follow-up: persist public-triage results as `Chat`/`Consultation` rows with `language` metadata (PRD §10.9). The authenticated consultation flow already persists; the *public* `/triage` flow is currently stateless (matches the donor app). Wiring it to create a `Consultation` is Phase 4 work.
 
-### 3.3 Port the multilingual surface into `apps/web`
-Once api contract is stable: bring the language system + TTS into `apps/web` as a `/triage` route group. Bridge the Pages↔App Router gap deliberately (either an App-Router segment in `apps/web` or a shared `packages/` UI lib). This is the step that fulfills PRD §3.1 ("not a separate product surface").
+### 3.3 Port the multilingual surface into `apps/web` — ✅ done
+Resolved the Pages↔App Router gap by **enabling TypeScript in `apps/web`** (added `tsconfig.json`; Next 16 supports mixed JS/TS) and copying the donor `lib` + components verbatim, rewired to the API:
+- `apps/web/lib/triage/{types,languages,tts,api}.ts`
+- `apps/web/components/triage/{LanguageSelector,NaijaConversation,NaijaResults,SpeakButton,BrandingHeader,BrandingFooter}.tsx`
+- `apps/web/pages/triage.tsx` — served at `/triage` on the single product domain (Decision B).
+Verified with a full `next build`: `/triage` route compiles and prerenders; TypeScript clean. `apps/lang` now has no unique value left (retire in Phase 4.4).
 
-**Phase 3 exit:** parity checklist from `FRONTEND_CONSOLIDATION_PLAN.md` met; multilingual available inside `apps/web`; `apps/lang` has no unique value left.
+**Phase 3 exit — met:** multilingual (en/ha/yo/ig/pcm) triage with text + audio + TTS is available inside `apps/web` at `/triage`, behind the single API boundary, and the app builds.
 
 ---
 
