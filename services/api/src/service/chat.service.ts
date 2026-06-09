@@ -214,11 +214,11 @@ export function startSocketServer(server: HttpServer): void {
 
       if (data.triage) {
         const { triageData, error } = await getTriageResponse(data.transcript_text, data.manual_context, patientId);
-        if (error) { socket.emit("info", "Error processing your request. Please try again."); return; }
+        if (error) { socket.emit("errorMessage", "Error processing your request. Please try again."); return; }
         io.to(room).emit("response", await addSystemMessage(session.consultationId, triageData));
       } else {
         const { clinicalData, error } = await getClinicalSupportResponse(data.transcript_text, data.manual_context, patientId);
-        if (error) { socket.emit("info", "Error processing your request. Please try again."); return; }
+        if (error) { socket.emit("errorMessage", "Error processing your request. Please try again."); return; }
         io.to(room).emit("response", await addClinicalSystemMessage(session.consultationId, clinicalData));
       }
 
@@ -243,11 +243,11 @@ export function startSocketServer(server: HttpServer): void {
 
       if (data.triage) {
         const { triageData, error } = await getTriageResponse(data.transcript_text, data.manual_context, patientId);
-        if (error) { socket.emit("info", "Error processing your request. Please try again."); return; }
+        if (error) { socket.emit("errorMessage", "Error processing your request. Please try again."); return; }
         io.to(room).emit("response", await addSystemMessage(newConsultationId, triageData));
       } else {
         const { clinicalData, error } = await getClinicalSupportResponse(data.transcript_text, data.manual_context, patientId);
-        if (error) { socket.emit("info", "Error processing your request. Please try again."); return; }
+        if (error) { socket.emit("errorMessage", "Error processing your request. Please try again."); return; }
         io.to(room).emit("response", await addClinicalSystemMessage(newConsultationId, clinicalData));
       }
 

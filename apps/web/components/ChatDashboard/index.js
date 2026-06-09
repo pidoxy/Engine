@@ -239,8 +239,25 @@ const ChatDashboard = ({
       setEscalation(data || null);
     });
 
+    // Server-reported processing failure (e.g. AI engine error): recover the UI
+    // so the user is never stuck on a "Processing..." spinner, and surface why.
+    socket.on("errorMessage", (msg) => {
+      setIsProcessing(false);
+      setToastState({
+        isVisible: true,
+        message: typeof msg === 'string' ? msg : 'Something went wrong. Please try again.',
+        type: 'error',
+      });
+    });
+
+    // Non-fatal status updates from the server (connection/consultation notices).
+    socket.on("info", (msg) => {
+      if (typeof msg === 'string') console.log('[socket info]', msg);
+    });
+
     socket.on("disconnect", () => {
       console.log("WebSocket disconnected for patient:", patientId);
+      setIsProcessing(false);
       setSocket(null);
     });
 
@@ -256,6 +273,8 @@ const ChatDashboard = ({
       socket.off("response");
       socket.off("presence");
       socket.off("escalation");
+      socket.off("errorMessage");
+      socket.off("info");
       socket.off("disconnect");
     };
   }, [token, patientId, patientData, setShowDefaultView, propConsultationId, router, isTriageEnabled]);
@@ -329,6 +348,21 @@ const ChatDashboard = ({
     }
     setInputText("");
     // Do not set isProcessing to false here; wait for websocket response
+  };
+
+  // Submit the typed notes/symptoms as a text consultation turn.
+  const handleSendText = () => {
+    const text = inputText.trim();
+    if (!text || isProcessing || !socket) return;
+    actuallySendMessage(text, "");
+  };
+
+  // Enter sends; Shift+Enter inserts a newline.
+  const handleInputKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendText();
+    }
   };
 
   const handleConsultationClick = (consultationId) => {
@@ -796,10 +830,21 @@ const ChatDashboard = ({
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onFocus={onInputFocus}
+            onKeyDown={handleInputKeyDown}
             placeholder="Enter notes or symptoms manually."
             className="flex-1 p-3 rounded-lg border border-gray-200 focus:outline-none focus:border-[#6366F1] resize-none min-h-[48px] max-h-[120px]"
             rows={2}
           />
+          <button
+            type="button"
+            onClick={handleSendText}
+            disabled={!inputText.trim() || isProcessing}
+            aria-label="Send"
+            title="Send (Enter)"
+            className="shrink-0 self-end h-[48px] w-[48px] flex items-center justify-center rounded-lg bg-[#6366F1] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#4f46e5] transition-colors"
+          >
+            <IoSend size={20} />
+          </button>
           {!showDefaultView && (
             <DocumentUploader
               onUpload={handleDocumentUpload}
