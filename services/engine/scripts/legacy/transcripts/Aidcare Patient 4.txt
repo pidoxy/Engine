@@ -1,0 +1,27 @@
+Patient Info:
+
+Name: Mr. Yusuf B.
+Age: 42
+Sex: Male
+Location: Kaduna South, Kaduna State
+Marital Status: Married with 3 children
+Occupation: Long-distance truck driver (routes between Lagos and Maiduguri)
+Medical History: Previously treated for malaria and typhoid; occasional ulcers
+Family History: Brother has asthma; mother is diabetic
+Social History: Smokes up to 5 sticks/day; drinks occasionally when on the road
+Living Conditions: Alternates between hotel stays and family home; often eats roadside food
+Diet: High in carbs, low in vegetables/fruits
+Vaccinations: Unknown; possibly incomplete
+
+Presenting Complaints:
+
+Reports persistent cough for the past 3 weeks, with yellowish sputum. Sometimes blood-streaked.
+Night sweats and unintentional weight loss of about 5 kg over the past month.
+Complains of chest tightness, worsened by exertion but relieved by rest.
+Recently started experiencing burning sensation in the stomach, especially when he skips meals.
+Also complains of lower back pain that radiates to the right side; describes it as “dragging.”
+Reports low-grade fever that comes and goes, especially at night.
+Took ampicillin from a chemist last week with no improvement.
+No known exposure to TB patient, but works in crowded parks and truck depots.
+No vomiting or diarrhea. Appetite is reduced.
+Denies recent COVID-19 contact or test.

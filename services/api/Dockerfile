@@ -14,7 +14,10 @@ COPY services/api/package.json ./services/api/
 COPY packages/database/package.json ./packages/database/
 COPY packages/types/package.json ./packages/types/
 
-RUN npm install --workspace=services/api --workspace=packages/database --workspace=packages/types
+# --ignore-scripts: skip the api's postinstall (prisma generate) at this layer —
+# the Prisma schema isn't copied yet; the builder stage runs `prisma generate`
+# explicitly once the schema is present.
+RUN npm install --ignore-scripts --workspace=services/api --workspace=packages/database --workspace=packages/types
 
 # ── Build ─────────────────────────────────────────────────
 FROM base AS builder
@@ -48,5 +51,5 @@ WORKDIR /app/services/api
 
 EXPOSE 4000
 
-# Run migrations then start
-CMD npx prisma migrate deploy --schema=../packages/database/prisma/schema.prisma && node dist/index.js
+# Start the API process; Railway runs migrations separately via preDeployCommand.
+CMD ["node", "dist/index.js"]

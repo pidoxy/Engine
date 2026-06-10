@@ -24,6 +24,16 @@
   background-color: #ECFDF5;
 }
 
+.error {
+  color: #DC2626;
+  background-color: #FEF2F2;
+}
+
+.info {
+  color: #4B5563;
+  background-color: #F3F4F6;
+}
+
 .spinner {
   width: 1.25rem;
   height: 1.25rem;

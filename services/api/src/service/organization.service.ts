@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { signToken, hashPassword } from "@/lib/auth";
+import { serializeUser, type SafeApiUser } from "@/utils/contractTransforms";
 import { ServiceResponse } from "@/utils/serviceResponse";
 import { StatusCodes } from "http-status-codes";
-import { TObjectId, TCreateOrganization, TUpdateOrganization, TCreateOrganizationWithRootUser } from "@/validations";
+import { TIdParam, TCreateOrganization, TUpdateOrganization, TCreateOrganizationWithRootUser } from "@/validations";
 import type { Organization, User, UserRole } from "@prisma/client";
 
 export class OrganizationService {
@@ -11,7 +12,7 @@ export class OrganizationService {
     return ServiceResponse.success("Organization created successfully", newOrg, StatusCodes.CREATED);
   }
 
-  async findById(_id: TObjectId["id"]): Promise<ServiceResponse<Organization | null>> {
+  async findById(_id: TIdParam["id"]): Promise<ServiceResponse<Organization | null>> {
     const org = await prisma.organization.findUnique({
       where: { id: _id },
       include: { createdBy: { select: { firstName: true, lastName: true, email: true } } },
@@ -26,19 +27,19 @@ export class OrganizationService {
     return ServiceResponse.success("Organizations retrieved successfully", orgs);
   }
 
-  async update(data: { body: TUpdateOrganization; id: TObjectId["id"] }): Promise<ServiceResponse<Organization | null>> {
-    const updated = await prisma.organization.update({ where: { id: data.id }, data: data.body });
+  async update(data: { body: TUpdateOrganization; id: TIdParam["id"] }): Promise<ServiceResponse<Organization | null>> {
+    const updated = await prisma.organization.update({ where: { id: data.id }, data: data.body ?? {} });
     return ServiceResponse.success("Organization updated successfully", updated);
   }
 
-  async delete(id: TObjectId["id"]): Promise<ServiceResponse<null>> {
+  async delete(id: TIdParam["id"]): Promise<ServiceResponse<null>> {
     await prisma.organization.delete({ where: { id } });
     return ServiceResponse.success("Organization deleted successfully", null, StatusCodes.NO_CONTENT);
   }
 
   async createWithRootUser(
     data: TCreateOrganizationWithRootUser
-  ): Promise<ServiceResponse<{ organization: Organization; user: Omit<User, "passwordHash">; token: string } | null>> {
+  ): Promise<ServiceResponse<{ organization: Organization; user: SafeApiUser; token: string } | null>> {
     const result = await prisma.$transaction(async (tx) => {
       const organization = await tx.organization.create({
         data: { name: data.name, description: data.description },
@@ -69,7 +70,7 @@ export class OrganizationService {
 
     return ServiceResponse.success(
       "Organization and root user created successfully",
-      { organization: result.organization, user: safeUser, token },
+      { organization: result.organization, user: serializeUser(safeUser), token },
       StatusCodes.CREATED
     );
   }

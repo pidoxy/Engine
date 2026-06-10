@@ -2,9 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { ServiceResponse } from "@/utils/serviceResponse";
 import { StatusCodes } from "http-status-codes";
 import AppError from "@/utils/appError";
-import axios from "axios";
-
-const ENGINE_URL = process.env.ENGINE_URL || "https://aidcare-triage-production.up.railway.app";
+import { postJsonToEngine } from "@/lib/engine";
 
 export class PatientService {
   async create(patientData: any): Promise<ServiceResponse<any | null>> {
@@ -26,14 +24,20 @@ export class PatientService {
     });
 
     // Sync to Engine — non-blocking, log on failure
-    axios
-      .post(`${ENGINE_URL}/patients/`, {
-        patient_uuid: patient.id,
-        full_name: `${patient.firstName} ${patient.lastName}`,
-        dateOfBirth: patient.dateOfBirth,
-        gender: patient.gender,
-      })
-      .catch((err) => console.error("[Engine sync] Failed to create patient:", err.message));
+    postJsonToEngine("/patients/", {
+      patient_uuid: patient.id,
+      first_name: patient.firstName,
+      last_name: patient.lastName,
+      full_name: `${patient.firstName} ${patient.lastName}`,
+      date_of_birth: patient.dateOfBirth ? patient.dateOfBirth.toISOString() : null,
+      gender: patient.gender,
+      organization_id: patient.organizationId,
+    }).catch((err: unknown) =>
+      console.error(
+        "[Engine sync] Failed to create patient:",
+        err instanceof Error ? err.message : err
+      )
+    );
 
     return ServiceResponse.success("Patient created successfully", patient, StatusCodes.CREATED);
   }
@@ -97,6 +101,10 @@ export class PatientService {
         messages: {
           select: { id: true, sender: true, createdAt: true, triageData: true, clinicalData: true, userMessage: true },
           orderBy: { createdAt: "asc" },
+        },
+        documents: {
+          select: { id: true, originalFilename: true, fileType: true, processingStatus: true, uploadedAt: true },
+          orderBy: { uploadedAt: "desc" },
         },
       },
     });

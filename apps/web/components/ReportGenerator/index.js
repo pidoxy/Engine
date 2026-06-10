@@ -10,13 +10,17 @@ const ReportGenerator = ({ patientData, currentInference, consultationData }) =>
   const isTriageMode = currentInference?.triage_recommendation;
   const mode = isClinicalMode ? 'Clinical Mode' : isTriageMode ? 'Triage Mode' : 'Unknown Mode';
 
-  // Mock documents data - replace with actual patient documents when available
-  const uploadedDocuments = [
-    { name: 'radiology_report.png', date: '8/27/2025', status: 'completed' },
-    { name: 'prescription.png', date: '8/27/2025', status: 'completed' },
-    { name: 'lab_report.png', date: '8/27/2025', status: 'completed' },
-    { name: 'clinic_note.png', date: '8/27/2025', status: 'completed' }
-  ];
+  // Real patient documents — sourced from the consultation or patient payload.
+  // Maps the API's PatientDocument shape to the report's display shape.
+  const rawDocuments =
+    consultationData?.documents ?? patientData?.documents ?? [];
+  const uploadedDocuments = rawDocuments.map((doc) => ({
+    name: doc.originalFilename ?? doc.name ?? 'document',
+    date: doc.uploadedAt
+      ? new Date(doc.uploadedAt).toLocaleDateString()
+      : doc.date ?? '',
+    status: doc.processingStatus ?? doc.status ?? 'unknown',
+  }));
 
   const generateReport = async () => {
     setIsGenerating(true);

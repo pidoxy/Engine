@@ -1,6 +1,6 @@
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
-import { getSavedUser } from '@/utils/auth';
+import { getSavedUser, isUserRole } from '@/utils/auth';
 import Loader from '@/components/Loader';
 import Image from 'next/image';
 import successImg from "../../assets/success_illustration.png";
@@ -16,7 +16,7 @@ export default function SignupSuccessPage() {
   useEffect(() => {
     const user = getSavedUser();
 
-    if (!user || user.role !== 'organization') {
+    if (!user || !isUserRole(user, 'organization')) {
       router.replace('/signup');
       return;
     }
@@ -26,7 +26,7 @@ export default function SignupSuccessPage() {
     }
 
     setLoading(false);
-  }, [orgId]);
+  }, [orgId, router]);
 
   if (loading) {
     return <div className="min-h-screen flex justify-center items-center">

@@ -11,6 +11,9 @@ import userRouter from "@/routes/user.router";
 import organizationRouter from "@/routes/organization.router";
 import patientRouter from "@/routes/patient.router";
 import consultationRouter from "@/routes/consultation.router";
+import transcribeRouter from "@/routes/transcribe.router";
+import naijaRouter from "@/routes/naija.router";
+import ttsRouter from "@/routes/tts.router";
 import dotenv from "dotenv";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
@@ -20,12 +23,19 @@ import { prisma } from "@/lib/prisma";
 
 dotenv.config();
 
-// Verify Prisma can connect on startup
-prisma.$connect()
-  .then(() => console.log("Database connection successfully established"))
+let databaseStatus: "connecting" | "connected" | "degraded" = "connecting";
+
+// Let the API start even if the database is temporarily unavailable.
+// Railway can then complete healthchecks while the DB finishes becoming ready.
+void prisma
+  .$connect()
+  .then(() => {
+    databaseStatus = "connected";
+    console.log("Database connection successfully established");
+  })
   .catch((error: Error) => {
+    databaseStatus = "degraded";
     console.error("Error connecting to database:", error);
-    process.exit(1);
   });
 
 const logger = pino({ name: "server start" });
@@ -60,6 +70,20 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/organization", organizationRouter);
 app.use("/api/v1/patients", patientRouter);
 app.use("/api/v1/consultations", consultationRouter);
+app.use("/api/v1/transcribe", transcribeRouter);
+app.use("/api/v1/naija", naijaRouter);
+app.use("/api/v1/tts", ttsRouter);
+app.get("/health", (_req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "AidCare API is healthy",
+    statusCode: 200,
+    data: {
+      databaseStatus,
+      uptime: process.uptime(),
+    },
+  });
+});
 app.use("/", (req, res) => {
   res.json({
     success: true,

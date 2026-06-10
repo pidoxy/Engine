@@ -4,9 +4,17 @@ from sqlalchemy import (
     Column, Integer, String, Text, DateTime, ForeignKey, JSON,
     Float, Boolean
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import func
-from .database import Base, engine
+from .database import engine
+
+# Copilot models use their OWN declarative Base/registry, separate from the
+# app-facing models in db_models.py. Both modules define a `Consultation`
+# class (tables `consultations` vs `copilot_consultations`); sharing one Base
+# made SQLAlchemy raise "Multiple classes found for path 'Consultation'" when
+# resolving string relationships, which broke the clinical-support path.
+# Separate registries keep each module's "Consultation" reference unambiguous.
+Base = declarative_base()
 
 
 # --- Doctor Model ---

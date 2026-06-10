@@ -7,11 +7,12 @@ const LoadingToast = ({ isVisible, message = 'Processing...', type = 'loading' }
   useEffect(() => {
     if (isVisible) {
       setShow(true);
-      // Auto-hide success messages after 3 seconds
-      if (type === 'success') {
+      // Auto-hide non-loading messages (success/error/info); loading persists
+      // until the caller clears it.
+      if (type !== 'loading') {
         const timer = setTimeout(() => {
           setShow(false);
-        }, 3000);
+        }, type === 'error' ? 5000 : 3000);
         return () => clearTimeout(timer);
       }
     } else {

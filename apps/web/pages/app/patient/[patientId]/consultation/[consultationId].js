@@ -4,6 +4,7 @@ import { useAppContext } from '@/context/AppContext';
 import ChatDashboard from '@/components/ChatDashboard';
 import Loader from '@/components/Loader';
 import NewPatientModal from '@/components/patients/NewPatientModal';
+import { getEntityId, normalizePatient } from '@/utils/contracts';
 
 export default function ConsultationView() {
   const router = useRouter();
@@ -32,8 +33,7 @@ export default function ConsultationView() {
           });
           if (!res.ok) throw new Error('Failed to fetch patient details');
           const data = await res.json();
-          // console.log("Patient data:", data);
-          setPatientData(data.data || data);
+          setPatientData(normalizePatient(data.data || data));
         } catch (error) {
           console.error("Error fetching patient details:", error);
         } finally {
@@ -46,8 +46,9 @@ export default function ConsultationView() {
 
   const handlePatientCreated = (newPatient) => {
     onPatientAdded();
-    if (newPatient && (newPatient._id || newPatient.id)) {
-      router.push(`/app/patient/${newPatient._id || newPatient.id}`);
+    const nextPatientId = getEntityId(newPatient);
+    if (nextPatientId) {
+      router.push(`/app/patient/${nextPatientId}`);
     }
   };
 

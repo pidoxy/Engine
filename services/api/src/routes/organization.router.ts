@@ -1,6 +1,7 @@
 import OrganizationController from "@/controllers/organization.controller";
 import { authenticate, authorize } from "@/middleware/auth.middleware";
-import { objectIdSchema } from "@/validations/objectId.schema";
+import { idParamSchema } from "@/validations/id.schema";
+import { UserRole } from "@prisma/client";
 import {
   createOrganizationSchema,
   updateOrganizationSchema,
@@ -8,7 +9,6 @@ import {
 } from "@/validations/organization.schema";
 import { validateRequest } from "@/utils/httpHandlers";
 import express, { type Router } from "express";
-import { UserRole } from "@/models/user.model";
 const organizationRouter: Router = express.Router();
 
 // Create a new organization with root user
@@ -38,7 +38,7 @@ organizationRouter.get(
 organizationRouter.get(
   "/:id",
   authenticate,
-  validateRequest(objectIdSchema),
+  validateRequest(idParamSchema),
   OrganizationController.getOrganization
 );
 
@@ -47,7 +47,7 @@ organizationRouter.patch(
   "/:id",
   authenticate,
   authorize(UserRole.ORGANIZATION),
-  validateRequest(objectIdSchema),
+  validateRequest(idParamSchema),
   validateRequest(updateOrganizationSchema),
   OrganizationController.updateOrganization
 );
@@ -57,7 +57,7 @@ organizationRouter.delete(
   "/:id",
   authenticate,
   authorize(UserRole.ORGANIZATION),
-  validateRequest(objectIdSchema),
+  validateRequest(idParamSchema),
   OrganizationController.deleteOrganization
 );
 

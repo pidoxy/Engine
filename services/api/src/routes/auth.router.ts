@@ -1,6 +1,5 @@
 import AuthController from "@/controllers/auth.controller";
-import { authenticate, authorize } from "@/middleware/auth.middleware";
-import { UserRole } from "@/models/user.model";
+import { authenticate } from "@/middleware/auth.middleware";
 import {
   forgotPasswordSchema,
   loginSchema,

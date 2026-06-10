@@ -29,9 +29,10 @@ const DocumentUploader = ({ onUpload, patientId, token }) => {
       formData.append('file', file);
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_ENGINE_URL}/patients/${patientId}/upload_document/`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/patients/${patientId}/documents`,
         {
           method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
           body: formData,
         }
       );

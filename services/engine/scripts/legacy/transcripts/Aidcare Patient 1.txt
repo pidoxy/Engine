@@ -1,0 +1,22 @@
+Patient Info:
+Name: Mr. Adewale O.
+Age: 34
+Sex: Male
+Location: Ajah, Lagos
+Marital Status: Married with 2 children
+Occupation: Bank staff (mostly sedentary)
+Medical History: No known chronic conditions, but had typhoid two years ago
+Family History: Father diabetic, mother hypertensive
+Social History: Drinks occasionally on weekends, no smoking, no drug use
+Housing: Lives in a self-contained flat, has running water but sometimes buys sachet water when there's shortage
+Diet: Eats out often due to work; mostly rice, amala, and street food
+
+Presenting Complaints:
+Reports 4-day history of body weakness, persistent fever (especially at night), and headaches.
+Also complains of abdominal discomfort, nausea, and two episodes of watery stool since yesterday.
+No vomiting yet, but reports mild loss of appetite.
+Took over-the-counter malaria drugs (Lonart) three days ago without improvement.
+No known contact with COVID-positive individual.
+No cough, no chest pain.
+He thinks "it’s typhoid again," as the symptoms feel "similar."
+Sleep has been disturbed by fever at night. Temperature at home last night read 38.9°C.

@@ -1,5 +1,6 @@
 import crypto from "crypto";
-import User from "@/models/user.model";
+import { prisma } from "@/lib/prisma";
+import { hashPassword, verifyPassword } from "@/lib/auth";
 import type {
   TForgotPassword,
   TLogin,
@@ -10,68 +11,50 @@ import type {
 import { userService } from "@/service/user.service";
 import AppError from "@/utils/appError";
 import catchAsync from "@/utils/catchAsync";
-// import Email from "@/utils/email";
 import { handleServiceResponse } from "@/utils/httpHandlers";
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { StatusCodes } from "http-status-codes";
-import jwt from "jsonwebtoken";
 
-const signToken = (id: string): string => {
-  const secret = process.env.JWT_SECRET || "";
-  const expiresIn = process.env.JWT_EXPIRES_IN || "90d";
+const getCookieOptions = () => {
+  const cookieExpirationInMs = Math.floor(
+    Number(process.env.JWT_COOKIE_EXPIRES_IN || 1) * 24 * 60 * 60 * 1000
+  );
+  const expiresIn = new Date(Date.now() + cookieExpirationInMs);
 
-  // Cast the expiresIn to any to bypass the type checking
-  return jwt.sign({ id }, secret, { expiresIn } as any);
+  return {
+    expires: expiresIn,
+    maxAge: cookieExpirationInMs,
+    httpOnly: true,
+    path: "/",
+    sameSite:
+      process.env.NODE_ENV === "production"
+        ? "none"
+        : ("lax" as "none" | "lax"),
+    secure: process.env.NODE_ENV === "production",
+    domain: process.env.COOKIE_DOMAIN,
+  };
 };
+
+const setAuthCookies = (res: Response, token: string) => {
+  const cookieOptions = getCookieOptions();
+
+  res.cookie("access", token, cookieOptions);
+  res.cookie("logged_in", true, {
+    ...cookieOptions,
+    httpOnly: false,
+  });
+};
+
 class AuthController {
   public login: RequestHandler = catchAsync(
-    async (req: Request<{}, {}, TLogin>, res: Response, next: NextFunction) => {
-      const { email, password } = req.body;
-      const user = await User.findOne({ email }).select("+password");
-      if (
-        !user ||
-        !(await user.correctPassword(
-          password as string,
-          user.password as string
-        ))
-      ) {
-        return next(new AppError("Incorrect email or password", 401));
+    async (req: Request<{}, {}, TLogin>, res: Response, _next: NextFunction) => {
+      const serviceResponse = await userService.login(req.body);
+
+      if (serviceResponse.success && serviceResponse.data) {
+        setAuthCookies(res, serviceResponse.data.token);
       }
 
-      const token = signToken(user._id as string);
-      const cookieExpirationInMs = Math.floor(
-        Number(process.env.JWT_COOKIE_EXPIRES_IN || 1) * 24 * 60 * 60 * 1000
-      ); // Convert days to milliseconds
-      const expiresIn = new Date(Date.now() + cookieExpirationInMs);
-
-      const cookieOptions = {
-        expires: expiresIn,
-        maxAge: cookieExpirationInMs,
-        httpOnly: true,
-        path: "/",
-        sameSite:
-          process.env.NODE_ENV === "production"
-            ? "none"
-            : ("lax" as "none" | "lax"),
-        secure: process.env.NODE_ENV === "production",
-        domain: process.env.COOKIE_DOMAIN,
-      };
-
-      res.cookie("access", token, cookieOptions);
-      res.cookie("logged_in", true, {
-        ...cookieOptions,
-        httpOnly: false,
-      });
-
-      res.status(200).json({
-        message: "Logged in successfully",
-        success: true,
-        data: {
-          user,
-          token,
-        },
-        statusCode: StatusCodes.OK,
-      });
+      return handleServiceResponse(serviceResponse, res);
     }
   );
 
@@ -79,37 +62,12 @@ class AuthController {
     async (
       req: Request<{}, {}, TRegisterUser>,
       res: Response,
-      next: NextFunction
+      _next: NextFunction
     ) => {
       const serviceResponse = await userService.register(req.body);
 
       if (serviceResponse.success && serviceResponse.data) {
-        const { user, token } = serviceResponse.data;
-
-        // Set cookies for automatic login (same as login method)
-        const cookieExpirationInMs = Math.floor(
-          Number(process.env.JWT_COOKIE_EXPIRES_IN || 1) * 24 * 60 * 60 * 1000
-        ); // Convert days to milliseconds
-        const expiresIn = new Date(Date.now() + cookieExpirationInMs);
-
-        const cookieOptions = {
-          expires: expiresIn,
-          maxAge: cookieExpirationInMs,
-          httpOnly: true,
-          path: "/",
-          sameSite:
-            process.env.NODE_ENV === "production"
-              ? "none"
-              : ("lax" as "none" | "lax"),
-          secure: process.env.NODE_ENV === "production",
-          domain: process.env.COOKIE_DOMAIN,
-        };
-
-        res.cookie("access", token, cookieOptions);
-        res.cookie("logged_in", true, {
-          ...cookieOptions,
-          httpOnly: false,
-        });
+        setAuthCookies(res, serviceResponse.data.token);
       }
 
       return handleServiceResponse(serviceResponse, res);
@@ -117,10 +75,18 @@ class AuthController {
   );
 
   public logout: RequestHandler = catchAsync(
-    async (req: Request, res: Response, _next: NextFunction) => {
-      res.clearCookie("access");
-      res.clearCookie("logged_in");
-      res.status(200).json({
+    async (_req: Request, res: Response, _next: NextFunction) => {
+      const cookieOptions = getCookieOptions();
+
+      res.clearCookie("access", { ...cookieOptions, maxAge: undefined, expires: undefined });
+      res.clearCookie("logged_in", {
+        ...cookieOptions,
+        httpOnly: false,
+        maxAge: undefined,
+        expires: undefined,
+      });
+
+      res.status(StatusCodes.OK).json({
         message: "Logged out successfully",
         statusCode: StatusCodes.OK,
         data: null,
@@ -135,42 +101,42 @@ class AuthController {
       res: Response,
       next: NextFunction
     ) => {
-      // 1) Get user based on POSTed email
-      const user = await User.findOne({ email: req.body.email });
+      const user = await prisma.user.findUnique({
+        where: { email: req.body.email },
+      });
+
       if (!user) {
         return next(
-          new AppError("There is no user with that email address", 404)
+          new AppError("There is no user with that email address", StatusCodes.NOT_FOUND)
         );
       }
 
-      // 2) Generate the random reset token
-      const resetToken = user.createPasswordResetToken();
-      await user.save({ validateBeforeSave: false });
+      const resetToken = crypto.randomBytes(32).toString("hex");
+      const hashedToken = crypto
+        .createHash("sha256")
+        .update(resetToken)
+        .digest("hex");
 
-      try {
-        const resetURL = `${req.protocol}://${req.get(
-          "host"
-        )}/api/v1/auth/reset-password/${resetToken}`;
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordResetToken: hashedToken,
+          passwordResetExpires: new Date(Date.now() + 10 * 60 * 1000),
+        },
+      });
 
-        // await new Email(user, resetURL).sendPasswordReset();
+      const resetURL = `${req.protocol}://${req.get(
+        "host"
+      )}/api/v1/auth/reset-password/${resetToken}`;
 
-        res.status(200).json({
-          status: "success",
-          message: "Token sent to email!",
-          data: null,
-          statusCode: StatusCodes.OK,
-        });
-      } catch (err) {
-        user.passwordResetToken = undefined;
-        user.passwordResetExpires = undefined;
-        await user.save({ validateBeforeSave: false });
-        return next(
-          new AppError(
-            "There was an error sending the email. Try again later!",
-            500
-          )
-        );
-      }
+      res.status(StatusCodes.OK).json({
+        status: "success",
+        message: "Token generated successfully",
+        data: {
+          resetUrl: resetURL,
+        },
+        statusCode: StatusCodes.OK,
+      });
     }
   );
 
@@ -180,30 +146,33 @@ class AuthController {
       res: Response,
       next: NextFunction
     ) => {
-      // 1) Get user based on the token
       const hashedToken = crypto
         .createHash("sha256")
         .update(req.params.token)
         .digest("hex");
 
-      const user = await User.findOne({
-        passwordResetToken: hashedToken,
-        passwordResetExpires: { $gt: Date.now() },
+      const user = await prisma.user.findFirst({
+        where: {
+          passwordResetToken: hashedToken,
+          passwordResetExpires: { gt: new Date() },
+        },
       });
 
-      // 2) If token has not expired, and there is user, set the new password
       if (!user) {
-        return next(new AppError("Token is invalid or has expired", 400));
+        return next(new AppError("Token is invalid or has expired", StatusCodes.BAD_REQUEST));
       }
 
-      user.password = req.body.password;
-      user.passwordResetToken = undefined;
-      user.passwordResetExpires = undefined;
-      await user.save();
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordHash: await hashPassword(req.body.password),
+          passwordResetToken: null,
+          passwordResetExpires: null,
+          passwordChangedAt: new Date(),
+        },
+      });
 
-      // 3) Update changedPasswordAt property for the user - done by pre-save middleware
-
-      res.status(200).json({
+      res.status(StatusCodes.OK).json({
         status: "success",
         message: "Password reset successfully!",
         data: null,
@@ -218,24 +187,37 @@ class AuthController {
       res: Response,
       next: NextFunction
     ) => {
-      // 1) Get user from collection
-      const user = await User.findById(req.user!.id).select("+password");
+      const currentUserId = req.user?.id;
+      if (!currentUserId) {
+        return next(new AppError("Authentication required", StatusCodes.UNAUTHORIZED));
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: currentUserId },
+      });
+
       if (!user) {
-        return next(new AppError("User not found", 404));
+        return next(new AppError("User not found", StatusCodes.NOT_FOUND));
       }
 
-      // 2) Check if POSTed current password is correct
-      if (
-        !(await user.correctPassword(req.body.passwordCurrent, user.password))
-      ) {
-        return next(new AppError("Your current password is wrong", 401));
+      const isPasswordValid = await verifyPassword(
+        req.body.passwordCurrent,
+        user.passwordHash
+      );
+
+      if (!isPasswordValid) {
+        return next(new AppError("Your current password is wrong", StatusCodes.UNAUTHORIZED));
       }
 
-      // 3) If so, update password
-      user.password = req.body.password;
-      await user.save();
+      await prisma.user.update({
+        where: { id: currentUserId },
+        data: {
+          passwordHash: await hashPassword(req.body.password),
+          passwordChangedAt: new Date(),
+        },
+      });
 
-      res.status(200).json({
+      res.status(StatusCodes.OK).json({
         status: "success",
         message: "Password updated successfully!",
         data: null,

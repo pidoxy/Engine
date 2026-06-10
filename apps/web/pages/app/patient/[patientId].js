@@ -8,6 +8,7 @@ import { RxHamburgerMenu } from 'react-icons/rx';
 import { IoSend } from 'react-icons/io5';
 import Loader from '@/components/Loader'; //
 import NewPatientModal from '@/components/patients/NewPatientModal'; //
+import { getEntityId, normalizePatient } from '@/utils/contracts';
 
 export default function PatientDetailPage() {
   const router = useRouter();
@@ -42,7 +43,7 @@ export default function PatientDetailPage() {
             throw new Error('Failed to fetch patient details');
           }
           const data = await res.json();
-          setPatientData(data.data || data);
+          setPatientData(normalizePatient(data.data || data));
         } catch (error) {
           console.error("Error fetching patient details:", error);
           setPatientData(null);
@@ -66,8 +67,9 @@ export default function PatientDetailPage() {
     onPatientAdded(); // Call context's function
     setOpenSidebar(false); // Close the sidebar
     // Navigate to the newly created patient's page, or stay if already on a patient page
-    if (newPatient && (newPatient._id || newPatient.id)) {
-      router.push(`/app/patient/${newPatient._id || newPatient.id}`);
+    const patientId = getEntityId(newPatient);
+    if (patientId) {
+      router.push(`/app/patient/${patientId}`);
     }
   };
 

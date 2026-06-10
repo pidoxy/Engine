@@ -2,9 +2,68 @@ import { prisma } from "@/lib/prisma";
 import { ServiceResponse } from "@/utils/serviceResponse";
 import { StatusCodes } from "http-status-codes";
 
+import type { ConsultationLanguage } from "@prisma/client";
+
 export const createConsultation = async (consultantId: string, patientId: string) => {
   return prisma.consultation.create({
     data: { consultantId, patientId, mode: "CHW_TRIAGE" },
+  });
+};
+
+const LANGUAGE_CODES: ConsultationLanguage[] = ["EN", "HA", "YO", "IG", "PCM"];
+
+const toLanguageEnum = (value: unknown): ConsultationLanguage => {
+  const upper = String(value ?? "").toUpperCase();
+  return (LANGUAGE_CODES as string[]).includes(upper)
+    ? (upper as ConsultationLanguage)
+    : "EN";
+};
+
+export interface PublicTriageTurn {
+  sender: "USER" | "SYSTEM";
+  text?: string;
+}
+
+/**
+ * Persist a completed public/anonymous multilingual triage session so it is not
+ * a dead-end (PRD §10.9). No patient/consultant is attached. The full
+ * conversation is stored as Chat rows and the final result on the consultation.
+ */
+export const createPublicTriageSession = async (input: {
+  language: unknown;
+  messages?: PublicTriageTurn[];
+  result?: unknown;
+}) => {
+  const language = toLanguageEnum(input.language);
+  const turns = (input.messages ?? [])
+    .filter((m) => m && (m.sender === "USER" || m.sender === "SYSTEM"))
+    .map((m) => ({
+      sender: m.sender,
+      language,
+      userMessage: m.sender === "USER" ? m.text ?? null : null,
+      triageData: m.sender === "SYSTEM" ? (m.text ? { text: m.text } : undefined) : undefined,
+    }));
+
+  return prisma.consultation.create({
+    data: {
+      patientId: null,
+      consultantId: null,
+      mode: "CHW_TRIAGE",
+      language,
+      title: "Public triage assessment",
+      finalRecommendationJson: (input.result ?? undefined) as never,
+      messages: turns.length
+        ? {
+            create: [
+              ...turns,
+              { sender: "SYSTEM", language, triageData: (input.result ?? undefined) as never },
+            ],
+          }
+        : {
+            create: [{ sender: "SYSTEM", language, triageData: (input.result ?? undefined) as never }],
+          },
+    },
+    select: { id: true, createdAt: true },
   });
 };
 

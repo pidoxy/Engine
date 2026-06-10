@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { getSavedUser } from "@/utils/auth";
+import { useAppContext } from "@/context/AppContext";
 
 export default function NewPatientModal({ isOpen, onClose, onPatientCreated }) {
+  const { organizationId, token } = useAppContext();
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -9,19 +10,14 @@ export default function NewPatientModal({ isOpen, onClose, onPatientCreated }) {
     gender: "male",
   });
   const [loading, setLoading] = useState(false);
-  const [organizationId, setOrganizationId] = useState("");
 
   useEffect(() => {
     if (isOpen) {
-      const user = getSavedUser();
-      if (user && user.organization) {
-        setOrganizationId(user.organization);
-      } else {
+      if (!organizationId) {
         console.error("Organization ID not found for the current user.");
         alert("Cannot create patient: Organization ID is missing.");
-        // You might want to alert the user or disable the form here
       }
-      // Reset form when modal opens
+
       setForm({
         firstName: "",
         lastName: "",
@@ -29,7 +25,7 @@ export default function NewPatientModal({ isOpen, onClose, onPatientCreated }) {
         gender: "male",
       });
     }
-  }, [isOpen]);
+  }, [isOpen, organizationId]);
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -44,11 +40,10 @@ export default function NewPatientModal({ isOpen, onClose, onPatientCreated }) {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem("aidcare_token");
       const baseURL = process.env.NEXT_PUBLIC_API_URL;
       const payload = {
         ...form,
-        organization: organizationId,
+        organizationId,
       };
 
       const res = await fetch(`${baseURL}/api/v1/patients`, {

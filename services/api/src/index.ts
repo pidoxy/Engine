@@ -1,8 +1,11 @@
 import { app, logger, httpServer } from "@/server";
 
-httpServer.listen(process.env.PORT, () => {
-  const { NODE_ENV, HOST, PORT } = process.env;
-  logger.info(`Server (${NODE_ENV}) running on port http://${HOST}:${PORT}`);
+const PORT = Number(process.env.PORT || 4000);
+const HOST = process.env.HOST || "0.0.0.0";
+
+httpServer.listen(PORT, HOST, () => {
+  const { NODE_ENV } = process.env;
+  logger.info(`Server (${NODE_ENV}) running on http://${HOST}:${PORT}`);
   logger.info(`WebSocket server available at ws://${HOST}:${PORT}/socket.io/`);
 });
 

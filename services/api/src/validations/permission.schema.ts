@@ -1,5 +1,5 @@
 import z from "zod";
-import { objectIdSchema } from "@/validations/objectId.schema";
+import { idParamSchema } from "@/validations/id.schema";
 
 export const createPermissionSchema = z.object({
   body: z.object({
@@ -18,7 +18,7 @@ export const updatePermissionSchema = z.object({
     })
     .partial()
     .optional(),
-  params: objectIdSchema.shape.params,
+  params: idParamSchema.shape.params,
 });
 
 export const addPermissionToFeatureSchema = z.object({
@@ -27,7 +27,7 @@ export const addPermissionToFeatureSchema = z.object({
       required_error: "Permission key is required",
     }),
   }),
-  params: objectIdSchema.shape.params,
+  params: idParamSchema.shape.params,
 });
 
 export const removePermissionFromFeatureSchema = z.object({
@@ -36,7 +36,7 @@ export const removePermissionFromFeatureSchema = z.object({
       required_error: "Permission key is required",
     }),
   }),
-  params: objectIdSchema.shape.params,
+  params: idParamSchema.shape.params,
 });
 
 export type TCreatePermission = z.infer<

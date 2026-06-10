@@ -4,6 +4,7 @@ import Head from 'next/head';
 import { IoLockClosedOutline, IoMailOutline, IoPersonOutline, IoEyeOffOutline, IoEyeOutline } from 'react-icons/io5';
 import Logo from '@/components/Logo';
 import Link from 'next/link';
+import { saveToken, saveUser } from '@/utils/auth';
 
 const OnboardUser = () => {
   const router = useRouter();
@@ -44,8 +45,8 @@ const OnboardUser = () => {
 
       const data = await res.json();
       const info = data.data;
-      localStorage.setItem('aidcare_user', JSON.stringify(info.user));
-      localStorage.setItem('aidcare_token', info.token);
+      saveUser(info.user);
+      saveToken(info.token);
       router.push(`/app`);
     } catch (err) {
       setError(err.message);
