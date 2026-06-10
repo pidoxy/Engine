@@ -6,7 +6,7 @@
     "buildCommand": ""
   },
   "deploy": {
-    "startCommand": "npx prisma migrate deploy --schema=/app/packages/database/prisma/schema.prisma && node /app/services/api/dist/index.js",
+    "startCommand": "echo '>> migrate start' && timeout 120 npx prisma migrate deploy --schema=/app/packages/database/prisma/schema.prisma; echo \">> migrate exit=$?\"; node /app/services/api/dist/index.js",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 5,
     "healthcheckPath": "/health"
