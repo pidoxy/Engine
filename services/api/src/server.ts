@@ -23,12 +23,19 @@ import { prisma } from "@/lib/prisma";
 
 dotenv.config();
 
-// Verify Prisma can connect on startup
-prisma.$connect()
-  .then(() => console.log("Database connection successfully established"))
+let databaseStatus: "connecting" | "connected" | "degraded" = "connecting";
+
+// Let the API start even if the database is temporarily unavailable.
+// Railway can then complete healthchecks while the DB finishes becoming ready.
+void prisma
+  .$connect()
+  .then(() => {
+    databaseStatus = "connected";
+    console.log("Database connection successfully established");
+  })
   .catch((error: Error) => {
+    databaseStatus = "degraded";
     console.error("Error connecting to database:", error);
-    process.exit(1);
   });
 
 const logger = pino({ name: "server start" });
@@ -72,6 +79,7 @@ app.get("/health", (_req, res) => {
     message: "AidCare API is healthy",
     statusCode: 200,
     data: {
+      databaseStatus,
       uptime: process.uptime(),
     },
   });
