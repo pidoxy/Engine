@@ -66,6 +66,16 @@ app.use("/api/v1/consultations", consultationRouter);
 app.use("/api/v1/transcribe", transcribeRouter);
 app.use("/api/v1/naija", naijaRouter);
 app.use("/api/v1/tts", ttsRouter);
+app.get("/health", (_req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "AidCare API is healthy",
+    statusCode: 200,
+    data: {
+      uptime: process.uptime(),
+    },
+  });
+});
 app.use("/", (req, res) => {
   res.json({
     success: true,

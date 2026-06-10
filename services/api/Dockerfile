@@ -51,5 +51,5 @@ WORKDIR /app/services/api
 
 EXPOSE 4000
 
-# Run migrations then start
-CMD npx prisma migrate deploy --schema=../packages/database/prisma/schema.prisma && node dist/index.js
+# Start the API process; Railway runs migrations separately via preDeployCommand.
+CMD ["node", "dist/index.js"]
