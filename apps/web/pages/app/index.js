@@ -5,6 +5,7 @@ import { useAppContext } from '@/context/AppContext';
 import ChatDashboard from '@/components/ChatDashboard';
 import NewPatientModal from '@/components/patients/NewPatientModal';
 import Loader from '@/components/Loader';
+import { getEntityId } from '@/utils/contracts';
 
 export default function AppHome() {
   const router = useRouter();
@@ -24,8 +25,9 @@ export default function AppHome() {
 
   const handlePatientCreatedAndNavigate = (newPatient) => {
     onPatientAdded();
-    if (newPatient && (newPatient._id || newPatient.id)) {
-      router.push(`/app/patient/${newPatient._id || newPatient.id}`);
+    const patientId = getEntityId(newPatient);
+    if (patientId) {
+      router.push(`/app/patient/${patientId}`);
     }
   };
 
@@ -70,8 +72,9 @@ export default function AppHome() {
 
   const handlePatientCreated = (newPatient) => {
     onPatientAdded();
-    if (newPatient && (newPatient._id || newPatient.id)) {
-      router.push(`/app/patient/${newPatient._id || newPatient.id}`);
+    const patientId = getEntityId(newPatient);
+    if (patientId) {
+      router.push(`/app/patient/${patientId}`);
       // Execute the last action if it exists
       if (lastAction) {
         lastAction();

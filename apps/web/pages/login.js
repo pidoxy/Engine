@@ -4,6 +4,7 @@ import { IoLockClosedOutline, IoMailOutline, IoEyeOffOutline, IoEyeOutline } fro
 import Link from 'next/link';
 import Logo from '@/components/Logo';
 import { trackUserEngagement } from '@/lib/gtag';
+import { saveToken, saveUser } from '@/utils/auth';
 
 export default function Login() {
   const router = useRouter();
@@ -33,9 +34,9 @@ export default function Login() {
       }
     
       const data = await res.json();
-      const info = data.data
-      localStorage.setItem('aidcare_user', JSON.stringify(info.user));
-      localStorage.setItem('aidcare_token', info.token);
+      const info = data.data;
+      saveUser(info.user);
+      saveToken(info.token);
       
       // Track successful login
       trackUserEngagement.login('email');

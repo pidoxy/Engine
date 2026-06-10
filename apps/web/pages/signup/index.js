@@ -4,6 +4,7 @@ import { IoLockClosedOutline, IoMailOutline, IoPersonOutline, IoEyeOffOutline, I
 import Link from 'next/link';
 import Logo from '@/components/Logo';
 import { trackUserEngagement } from '@/lib/gtag';
+import { saveToken, saveUser } from '@/utils/auth';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -39,14 +40,14 @@ export default function SignupPage() {
       }
     
       const data = await res.json();
-      const info = data.data
-      localStorage.setItem('aidcare_user', JSON.stringify(info.user));
-      localStorage.setItem('aidcare_token', info.token);
+      const info = data.data;
+      saveUser(info.user);
+      saveToken(info.token);
       
       // Track successful signup
       trackUserEngagement.signup('email');
       
-      router.push(`/signup/success?orgId=${info.user.organization}&orgName=${info.organization.name}`);
+      router.push(`/signup/success?orgId=${info.user.organizationId || info.user.organization}&orgName=${info.organization.name}`);
     } catch (err) {
       setError(err.message);
       setLoading(false);

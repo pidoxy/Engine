@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
-import { getSavedUser } from '@/utils/auth'; //
+import { clearAuth, getSavedToken, getSavedUser, getUserOrganizationId } from '@/utils/auth';
+import { normalizePatients } from '@/utils/contracts';
 
 const AppContext = createContext(null);
 
@@ -23,16 +24,16 @@ export const AppProvider = ({ children }) => {
   const [isNewPatientModalOpen, setIsNewPatientModalOpen] = useState(false);
 
   useEffect(() => {
-    const storedUser = getSavedUser(); //
+    const storedUser = getSavedUser();
     if (storedUser) {
       setUser(storedUser);
-      // organizationId is still useful if other operations need it (e.g. creating a patient)
-      if (storedUser.organization) { 
-        setOrganizationId(storedUser.organization);
+      const nextOrganizationId = getUserOrganizationId(storedUser);
+      if (nextOrganizationId) {
+        setOrganizationId(nextOrganizationId);
       }
-      const storedToken = localStorage.getItem("aidcare_token");
-      setToken(storedToken);
+      setToken(getSavedToken());
     } else {
+      setToken(getSavedToken());
       const publicPaths = ['/login', '/signup', '/onboard', '/signup/success'];
       if (!publicPaths.includes(router.pathname) && !router.pathname.startsWith('/_error')) {
         // Consider redirecting if not on a public page and no user/token
@@ -57,7 +58,7 @@ export const AppProvider = ({ children }) => {
         throw new Error(errorData.message || 'Failed to fetch patients');
       }
       const data = await res.json();
-      setPatients(data.data || data || []);
+      setPatients(normalizePatients(data.data || data || []));
     } catch (error) {
       console.error("Error fetching patients from context:", error);
       setPatients([]);
@@ -76,8 +77,7 @@ export const AppProvider = ({ children }) => {
   const closeNewPatientModal = () => setIsNewPatientModalOpen(false);
 
   const handleLogout = () => {
-    localStorage.removeItem('aidcare_user');
-    localStorage.removeItem('aidcare_token');
+    clearAuth();
     setUser(null);
     setOrganizationId(null);
     setToken(null);

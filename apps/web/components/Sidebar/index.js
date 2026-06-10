@@ -6,6 +6,8 @@ import { FaUserMd, FaUserPlus } from "react-icons/fa";
 import { useRouter } from "next/router";
 import { useAppContext } from '@/context/AppContext'; // Use the context
 import Loader from "@/components/Loader"; //
+import { getUserOrganizationId } from "@/utils/auth";
+import { getEntityId } from "@/utils/contracts";
 
 // Removed onOpenNewPatientModal and refreshPatientsTrigger from props
 const Sidebar = ({ isOpen, onClose }) => { 
@@ -38,8 +40,9 @@ const Sidebar = ({ isOpen, onClose }) => {
   };
 
   const handleOnboardingClick = () => {
-    if (user?.organization) {
-      router.push(`/onboard?orgId=${user.organization}`);
+    const organizationId = getUserOrganizationId(user);
+    if (organizationId) {
+      router.push(`/onboard?orgId=${organizationId}`);
       onClose();
     }
   };
@@ -48,7 +51,7 @@ const Sidebar = ({ isOpen, onClose }) => {
   const userRole = user ? user.role : "";
 
   // Check if user can access onboarding (admin or organization roles)
-  const canAccessOnboarding = userRole === 'admin' || userRole === 'organization';
+  const canAccessOnboarding = userRole === 'organization';
 
   let rolesDisplay = {
     consultant: "Clinical Consultant",
@@ -106,11 +109,11 @@ const Sidebar = ({ isOpen, onClose }) => {
               <Loader size="sm" /> {/* */}
             </div>
           ) : patients.length > 0 ? (
-            <ul className={styles.patientList || "divide-y"}> {/* */}
+              <ul className={styles.patientList || "divide-y"}> {/* */}
               {patients.map((patient) => (
-                <li key={patient._id || patient.id} className={styles.patientListItem || "p-0"}> {/* */}
+                <li key={getEntityId(patient)} className={styles.patientListItem || "p-0"}> {/* */}
                   <button
-                    onClick={() => handlePatientClick(patient._id || patient.id)}
+                    onClick={() => handlePatientClick(getEntityId(patient))}
                     className={styles.patientListItemButton || "w-full text-left p-3 hover:bg-gray-100"} /* */
                   >
                     {patient.firstName} {patient.lastName}
